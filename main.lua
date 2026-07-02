@@ -357,7 +357,7 @@ function NEON:CreateWindow(cfg)
 	cat.LayoutOrder = 1; cat.TextTransparency = 0.47
 	local bigTitle = new("TextLabel", { Parent = hL, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0), Text = "",
-		TextColor3 = INK, FontFace = displayFont(), TextSize = 66, TextXAlignment = Enum.TextXAlignment.Left })
+		TextColor3 = INK, FontFace = displayFont(), TextSize = 74, TextXAlignment = Enum.TextXAlignment.Left })
 	local hR = new("Frame", { Parent = header, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	local hRl = vlist(hR, 5); hRl.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -382,21 +382,15 @@ function NEON:CreateWindow(cfg)
 	vlist(scroll, 0)
 	win._scroll = scroll
 
-	-- FOOTER
+	-- FOOTER (static height, not AutomaticSize)
 	local footer = new("Frame", { Parent = body, LayoutOrder = 5, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	vlist(footer, 0)
-	new("Frame", { Parent = footer, LayoutOrder = 1, BackgroundColor3 = INK, BorderSizePixel = 0,
-		Size = UDim2.new(1, 0, 0, 1.5) })
-	local fInner = new("Frame", { Parent = footer, LayoutOrder = 2, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(fInner, 15, 24, 15, 24)
-	hlist(fInner, 8).VerticalAlignment = Enum.VerticalAlignment.Center
-	local fL = label(fInner, "BUILD " .. (cfg.Build or "2.4.1") .. " · STANDALONE", 10, Enum.FontWeight.Medium, INK)
-	fL.LayoutOrder = 1; fL.TextTransparency = 0.53; fL.AutomaticSize = Enum.AutomaticSize.Y
-	new("UIFlexItem", { Parent = fL, FlexMode = Enum.UIFlexMode.Fill })
-	local fR = label(fInner, "◄ TAB ► NAVIGATE · ESC CLOSE", 10, Enum.FontWeight.Medium, INK)
-	fR.LayoutOrder = 2; fR.TextXAlignment = Enum.TextXAlignment.Right
+		Size = UDim2.new(1, 0, 0, 48) })
+	new("Frame", { Parent = footer, BackgroundColor3 = INK, BorderSizePixel = 0,
+		Size = UDim2.new(1, 0, 0, 1.5), Position = UDim2.fromScale(0, 0) })
+	local fL = label(footer, "BUILD " .. (cfg.Build or "2.4.1") .. " · STANDALONE", 10, Enum.FontWeight.Medium, INK)
+	fL.AnchorPoint = Vector2.new(0, 0.5); fL.Position = UDim2.new(0, 24, 0.5, 0); fL.TextTransparency = 0.53
+	local fR = label(footer, "◄ TAB ► NAVIGATE · ESC CLOSE", 10, Enum.FontWeight.Medium, INK)
+	fR.AnchorPoint = Vector2.new(1, 0.5); fR.Position = UDim2.new(1, -24, 0.5, 0); fR.TextXAlignment = Enum.TextXAlignment.Right
 
 	-- interactions ---------------------------------------------------------
 	bindDrag(nav, panel, "move", function(startPos, d)
