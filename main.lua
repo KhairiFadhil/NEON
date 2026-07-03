@@ -223,7 +223,7 @@ function NEON:CreateWindow(cfg)
 	local W, LIST_H = 772, 352
 	local panel = new("Frame", { Parent = gui, BackgroundColor3 = ACCENT, BorderSizePixel = 0,
 		Position = UDim2.fromOffset(60, 60), Size = UDim2.new(0, W, 0, 0),
-		AutomaticSize = Enum.AutomaticSize.Y, ClipsDescendants = true })
+		AutomaticSize = Enum.AutomaticSize.Y, ClipsDescendants = true, Active = true })
 	corner(panel, 4)   -- uniform 4px corners, no black outline (soft shadow instead)
 	vlist(panel, 0)
 	win._panel = panel
@@ -278,7 +278,7 @@ function NEON:CreateWindow(cfg)
 
 	-- NAVBAR ---------------------------------------------------------------
 	local nav = new("Frame", { Parent = panel, LayoutOrder = 1, BackgroundColor3 = ACCENT,
-		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 64) })
+		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 64), Active = true })
 	local navL = new("Frame", { Parent = nav, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 36, 0.5, 0), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	hlist(navL, 16).VerticalAlignment = Enum.VerticalAlignment.Center
@@ -720,7 +720,7 @@ function Tab:Dropdown(cfg)
 		FontFace = bodyFont(), TextSize = 10 })
 	-- overlay list, parented to the ScreenGui so neither the scroll nor the panel clips it
 	local menu = new("Frame", { Parent = win._gui, Visible = false, ZIndex = 60, BackgroundColor3 = ACCENT,
-		BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.fromOffset(190, 0) })
+		BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.fromOffset(190, 0), Active = true })
 	stroke(menu, 1.5, INK).ZIndex = 60; corner(menu, 4)
 	vlist(menu, 0)
 	local function close() menu.Visible = false end
