@@ -341,6 +341,7 @@ function NEON:CreateWindow(cfg)
 	end
 	local avatarStroke = stroke(avatar, 1.5, INK); corner(avatar, 6)
 	win._avatar = avatar
+	avatar.Visible = cfg.ShowAvatar ~= false   -- ShowAvatar = false hides the "W"/image slot
 	local sesWrap = new("Frame", { Parent = subL, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	hlist(sesWrap, 7).VerticalAlignment = Enum.VerticalAlignment.Center
@@ -599,6 +600,7 @@ function NEON:SetFooterRight(text)
 end
 function NEON:SetIcon(image) if self._icon then self._icon.Image = image end end
 function NEON:SetAvatarImage(image) if self._avatar and self._avatar:IsA("ImageLabel") then self._avatar.Image = image end end
+function NEON:SetAvatarVisible(v) if self._avatar then self._avatar.Visible = v and true or false end end
 
 -- Config save/load (executor filesystem) -------------------------------------
 function NEON:_cfgPath(name) return "NEON_" .. tostring(name or self._configName or "default") .. ".json" end

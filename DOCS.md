@@ -30,6 +30,7 @@ local Window = NEON:CreateWindow({
     SubTitle   = "Session Active",      -- substrip text
     Avatar     = "rbxassetid://123",    -- image for the substrip slot...
     AvatarText = "W",                   -- ...or a letter if no Avatar image (default "W")
+    ShowAvatar = true,                  -- false hides the avatar slot entirely
 
     Footer      = "BUILD 1.0",          -- footer left text
     FooterRight = nil,                  -- optional footer right text (hidden by default)
@@ -58,6 +59,7 @@ local Window = NEON:CreateWindow({
 | `Window:SetFooterRight(text)` | Set/update the footer **right** text (lazy — good for a live countdown) |
 | `Window:SetIcon(rbxassetid)` | Change the logo image |
 | `Window:SetAvatarImage(rbxassetid)` | Change the substrip image |
+| `Window:SetAvatarVisible(bool)` | Show/hide the avatar slot live |
 | `Window:SaveConfig([name])` | Save all values to a JSON file |
 | `Window:LoadConfig([name])` | Load values from a JSON file |
 
