@@ -889,9 +889,14 @@ function Tab:Dropdown(cfg)
 	local shadow = new("ImageLabel", { Parent = win._gui, Visible = false, ZIndex = 59, BackgroundTransparency = 1,
 		Image = "rbxassetid://6014261993", ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 1,
 		ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450) })
-	local menu = new("Frame", { Parent = win._gui, Visible = false, ZIndex = 60, BackgroundColor3 = ACCENT,
-		BackgroundTransparency = 1, BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.Y,
-		Size = UDim2.fromOffset(190, 0), Active = true })
+	-- scrollable menu: capped height, scrolls when there are lots of options (MaxHeight overrides)
+	local optionH, maxDH = 30, (cfg.MaxHeight or 180)
+	local menuH = math.min(#(cfg.Options or {}) * optionH + 8, maxDH)
+	local menu = new("ScrollingFrame", { Parent = win._gui, Visible = false, ZIndex = 60, BackgroundColor3 = ACCENT,
+		BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromOffset(190, menuH),
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 4,
+		ScrollBarImageColor3 = INK, ScrollBarImageTransparency = 0.5,
+		ScrollingDirection = Enum.ScrollingDirection.Y, Active = true })
 	corner(menu, 6)
 	local scl = new("UIScale", { Parent = menu, Scale = 0.96 })
 	vlist(menu, 0); pad(menu, 4, 0, 4, 0)
@@ -909,7 +914,7 @@ function Tab:Dropdown(cfg)
 		local bx = p.Position.X.Offset + (btn.AbsolutePosition.X - p.AbsolutePosition.X)
 		local by = p.Position.Y.Offset + (btn.AbsolutePosition.Y - p.AbsolutePosition.Y) + btn.AbsoluteSize.Y + 6
 		menu.Position = UDim2.fromOffset(bx, by)
-		menu.Size = UDim2.fromOffset(btn.Size.X.Offset, 0)   -- base width; the UIScale matches it to the button
+		menu.Size = UDim2.fromOffset(btn.Size.X.Offset, menuH)   -- base width + capped height; UIScale matches the button
 		shadow.Position = UDim2.fromOffset(bx - SH, by - SH)
 		shadow.Size = UDim2.fromOffset(menu.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
 	end

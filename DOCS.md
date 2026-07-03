@@ -130,7 +130,8 @@ Tab:Keybind{ Title = "Fly Key", Default = "F", Callback = function(keycode) end 
 ### Dropdown
 ```lua
 Tab:Dropdown{ Title = "Weather", Options = {"CLEAR","RAIN","STORM"}, Default = "CLEAR",
-              Callback = function(opt) end }  -- :Set/:Get string
+              MaxHeight = 180,                 -- optional: menu scrolls past this height
+              Callback = function(opt) end }  -- :Set/:Get string. Popup scrolls when options overflow.
 ```
 
 ### Segmented (button group)
