@@ -240,6 +240,8 @@ function NEON:CreateWindow(cfg)
 	corner(panel, 4)   -- uniform 4px corners, no black outline (soft shadow instead)
 	vlist(panel, 0)
 	win._panel = panel
+	-- responsive zoom: the resize grip drives this, scaling all content (fonts, spacing, controls)
+	win._scale = new("UIScale", { Parent = panel, Scale = cfg.Scale or 1 })
 
 	-- soft drop shadow behind the panel (9-slice); low intensity for a gentle blur
 	local shadow = new("ImageLabel", { Parent = gui, BackgroundTransparency = 1, ZIndex = 0,
@@ -466,12 +468,11 @@ function NEON:CreateWindow(cfg)
 	-- Resize: capture the LIVE width + list height at grab time. Using the constant LIST_H as
 	-- the baseline made a second drag snap the list back to 352 (the "footer expands" jump).
 	do
-		local dragging, startInput, startW, startH
+		local dragging, startInput, startScale
 		resizeH.InputBegan:Connect(function(i)
 			if win._min then return end
 			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-				dragging = true; startInput = i.Position
-				startW = panel.AbsoluteSize.X; startH = win._scrollMaxH
+				dragging = true; startInput = i.Position; startScale = win._scale.Scale
 				i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dragging = false end end)
 			end
 		end)
@@ -479,8 +480,7 @@ function NEON:CreateWindow(cfg)
 			if not dragging then return end
 			if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
 				local d = i.Position - startInput
-				panel.Size = UDim2.new(0, math.clamp(startW + d.X, 560, 1000), 0, 0)
-				win._scrollMaxH = math.clamp(startH + d.Y, 200, 560); win._fitScroll()
+				win._scale.Scale = math.clamp(startScale + (d.X + d.Y) / 1500, 0.6, 1.8)  -- uniform responsive zoom
 			end
 		end)
 	end
@@ -539,8 +539,9 @@ function NEON:_toggleMin()
 		tween(body, { Size = UDim2.new(1, 0, 0, 0) }, EASE)
 		local w = 392
 		self._restorePos = self._restorePos or panel.Position
+		local dispW = w * self._scale.Scale   -- centred using the on-screen (scaled) width
 		tween(panel, { Size = UDim2.new(0, w, 0, 0),
-			Position = UDim2.fromOffset(math.floor((panel.Parent.AbsoluteSize.X - w) / 2), 20) }, EASE)
+			Position = UDim2.fromOffset(math.floor((panel.Parent.AbsoluteSize.X - dispW) / 2), 20) }, EASE)
 		task.delay(DUR, function() if self._min then body.Visible = false end end)
 	else
 		body.ClipsDescendants = true
@@ -908,9 +909,9 @@ function Tab:Dropdown(cfg)
 		local bx = p.Position.X.Offset + (btn.AbsolutePosition.X - p.AbsolutePosition.X)
 		local by = p.Position.Y.Offset + (btn.AbsolutePosition.Y - p.AbsolutePosition.Y) + btn.AbsoluteSize.Y + 6
 		menu.Position = UDim2.fromOffset(bx, by)
-		menu.Size = UDim2.fromOffset(btn.AbsoluteSize.X, 0)
+		menu.Size = UDim2.fromOffset(btn.Size.X.Offset, 0)   -- base width; the UIScale matches it to the button
 		shadow.Position = UDim2.fromOffset(bx - SH, by - SH)
-		shadow.Size = UDim2.fromOffset(btn.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
+		shadow.Size = UDim2.fromOffset(menu.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
 	end
 	local function fade(hidden)
 		tween(menu, { BackgroundTransparency = hidden and 1 or 0 }, T)
@@ -922,7 +923,7 @@ function Tab:Dropdown(cfg)
 		isOpen = false
 		if followConn then followConn:Disconnect(); followConn = nil end
 		fade(true)
-		tween(scl, { Scale = 0.96 }, T); tween(arrow, { Rotation = 0 }, T); tween(btn, { BackgroundTransparency = 0.9 }, T)
+		tween(scl, { Scale = win._scale.Scale * 0.96 }, T); tween(arrow, { Rotation = 0 }, T); tween(btn, { BackgroundTransparency = 0.9 }, T)
 		task.delay(0.2, function() if not isOpen then menu.Visible = false; shadow.Visible = false end end)
 	end
 
@@ -941,11 +942,12 @@ function Tab:Dropdown(cfg)
 
 	local function open()
 		isOpen = true
-		scl.Scale = 0.96
+		local vs = win._scale.Scale            -- match the panel's responsive zoom
+		scl.Scale = vs * 0.96
 		menu.Visible = true; shadow.Visible = true
 		positionAt(); task.defer(positionAt)
 		fade(false)
-		tween(scl, { Scale = 1 }, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+		tween(scl, { Scale = vs }, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
 		tween(arrow, { Rotation = 180 }, T); tween(btn, { BackgroundTransparency = 0.82 }, T)
 		followConn = RunService.RenderStepped:Connect(positionAt)   -- follow the panel while open
 		win._openDropdown = menu; win._closePopup = close

@@ -38,6 +38,7 @@ local Window = NEON:CreateWindow({
     ToggleKey  = Enum.KeyCode.RightShift, -- show/hide the whole menu
     ConfigName = "myscript",            -- enable auto-save to NEON_myscript.json (optional)
     Minimized  = false,                 -- true = open collapsed into the bar (default false)
+    Scale      = 1,                     -- initial UI zoom (fonts/spacing/controls scale together)
 })
 ```
 
@@ -63,9 +64,10 @@ local Window = NEON:CreateWindow({
 | `Window:SaveConfig([name])` | Save all values to a JSON file |
 | `Window:LoadConfig([name])` | Load values from a JSON file |
 
-Behaviour: drag by the navbar or the bottom handle · resize from the corner grip · minimize
-via the hamburger (accordion) · `ToggleKey` shows/hides · the list caps at ~352px and scrolls
-when a tab overflows (short tabs shrink to fit).
+Behaviour: drag by the navbar or the bottom handle · **the corner grip resizes responsively —
+it zooms the whole menu (fonts, spacing, controls scale together) via a UIScale** · minimize
+via the hamburger (accordion) · `ToggleKey` shows/hides · the list caps and scrolls when a tab
+overflows (short tabs shrink to fit). Set the initial zoom with `Scale`.
 
 ---
 
