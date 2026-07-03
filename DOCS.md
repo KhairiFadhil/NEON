@@ -54,7 +54,8 @@ local Window = NEON:CreateWindow({
 | `Window:Notify("text")` | Toast (bottom-right, auto-dismiss) |
 | `Window:SetTitle(text)` | Change the header title |
 | `Window:SetSubTitle(text)` | Change the substrip text |
-| `Window:SetFooter(text)` | Change the footer text |
+| `Window:SetFooter(text)` | Change the footer **left** text |
+| `Window:SetFooterRight(text)` | Set/update the footer **right** text (lazy — good for a live countdown) |
 | `Window:SetIcon(rbxassetid)` | Change the logo image |
 | `Window:SetAvatarImage(rbxassetid)` | Change the substrip image |
 | `Window:SaveConfig([name])` | Save all values to a JSON file |
