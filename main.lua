@@ -350,7 +350,7 @@ function NEON:CreateWindow(cfg)
 	-- HEADER
 	local header = new("Frame", { Parent = body, LayoutOrder = 2, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(header, 12, 24, 8, 24)
+	pad(header, 8, 24, 6, 24)
 	local hrow = hlist(header, 12); hrow.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	local hL = new("Frame", { Parent = header, LayoutOrder = 1, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(0, 0, 0, 0) })
@@ -358,9 +358,12 @@ function NEON:CreateWindow(cfg)
 	vlist(hL, 2)
 	local cat = label(hL, "CATEGORY — EDITING", 10, Enum.FontWeight.Medium, INK)
 	cat.LayoutOrder = 1; cat.TextTransparency = 0.47
+	-- Crop the Anton em-box's empty bottom (descender space): top-align + a box shorter than the
+	-- font size so the caps hug the box, with no wasted vertical padding under the title.
 	local bigTitle = new("TextLabel", { Parent = hL, LayoutOrder = 2, BackgroundTransparency = 1,
-		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0), Text = "",
-		TextColor3 = INK, FontFace = displayFont(), TextSize = 80, TextXAlignment = Enum.TextXAlignment.Left })
+		AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 0, 66), Text = "",
+		TextColor3 = INK, FontFace = displayFont(), TextSize = 80, ClipsDescendants = true,
+		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
 	local hR = new("Frame", { Parent = header, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	local hRl = vlist(hR, 5); hRl.HorizontalAlignment = Enum.HorizontalAlignment.Right
