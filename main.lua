@@ -498,11 +498,8 @@ function NEON:_selectTab(tab)
 	self._activeTab = tab
 	if self._openDropdown then self._openDropdown.Visible = false end
 	for _, tb in ipairs(self._tabs) do
-		local active = tb == tab
-		tb._btn.BackgroundColor3 = active and INK or ACCENT
-		tb._btn.BackgroundTransparency = 0
-		tb._lbl.TextColor3 = active and ACCENT or INK
-		tb._page.Visible = active
+		tb._page.Visible = (tb == tab)
+		if tb._refresh then tb._refresh() end
 	end
 	self._bigTitle.Text = string.upper(tab._title)
 	self._catLbl.Text = "CATEGORY — " .. string.upper(tab._title)
@@ -528,10 +525,20 @@ function NEON:CreateTab(cfg)
 		TextSize = 12 })
 
 	local tab = setmetatable({ _win = win, _page = page, _btn = btn, _lbl = lbl, _title = cfg.Title or "TAB" }, Tab)
+	-- Single source of truth for the tab colour so hover + select never fight each other.
+	-- Cancel the in-flight tween first, else a hover tween can override the select colour.
+	local function refresh()
+		local active = win._activeTab == tab
+		local target = active and INK or (tab._hover and ACCENT:Lerp(INK, 0.16) or ACCENT)
+		if tab._ctween then tab._ctween:Cancel() end
+		tab._ctween = TweenService:Create(btn, TWEEN, { BackgroundColor3 = target })
+		tab._ctween:Play()
+		lbl.TextColor3 = active and ACCENT or INK
+	end
+	tab._refresh = refresh
 	btn.MouseButton1Click:Connect(function() win:_selectTab(tab) end)
-	-- hover feedback (skip the active tab, which _selectTab paints ink)
-	btn.MouseEnter:Connect(function() if win._activeTab ~= tab then tween(btn, { BackgroundColor3 = ACCENT:Lerp(INK, 0.16) }) end end)
-	btn.MouseLeave:Connect(function() if win._activeTab ~= tab then tween(btn, { BackgroundColor3 = ACCENT }) end end)
+	btn.MouseEnter:Connect(function() tab._hover = true; refresh() end)
+	btn.MouseLeave:Connect(function() tab._hover = false; refresh() end)
 	table.insert(win._tabs, tab)
 	-- Equal-width tabs via scale. (UIFlexItem Fill collapses to 0 when EVERY sibling is Fill,
 	-- so we size explicitly and re-split on each new tab.)
