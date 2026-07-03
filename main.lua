@@ -279,6 +279,7 @@ function NEON:CreateWindow(cfg)
 	-- NAVBAR ---------------------------------------------------------------
 	local nav = new("Frame", { Parent = panel, LayoutOrder = 1, BackgroundColor3 = ACCENT,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 64), Active = true })
+	corner(nav, 4)   -- rounds the panel's TOP corners even if ClipsDescendants doesn't round
 	local navL = new("Frame", { Parent = nav, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 36, 0.5, 0), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	hlist(navL, 16).VerticalAlignment = Enum.VerticalAlignment.Center
@@ -393,8 +394,9 @@ function NEON:CreateWindow(cfg)
 	win._scroll = scroll
 
 	-- FOOTER (static height, not AutomaticSize)
-	local footer = new("Frame", { Parent = body, LayoutOrder = 5, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 48) })
+	local footer = new("Frame", { Parent = body, LayoutOrder = 5, BackgroundColor3 = ACCENT,
+		BackgroundTransparency = 0, Size = UDim2.new(1, 0, 0, 48) })
+	corner(footer, 4)   -- rounds the panel's BOTTOM corners (top corners hidden behind the list)
 	new("Frame", { Parent = footer, BackgroundColor3 = INK, BorderSizePixel = 0,
 		Size = UDim2.new(1, 0, 0, 1.5), Position = UDim2.fromScale(0, 0) })
 	local fL = label(footer, "BUILD " .. (cfg.Build or "2.4.1") .. " · STANDALONE", 10, Enum.FontWeight.Medium, INK)
