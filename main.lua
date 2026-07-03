@@ -360,7 +360,7 @@ function NEON:CreateWindow(cfg)
 	cat.LayoutOrder = 1; cat.TextTransparency = 0.47
 	local bigTitle = new("TextLabel", { Parent = hL, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0), Text = "",
-		TextColor3 = INK, FontFace = displayFont(), TextSize = 66, TextXAlignment = Enum.TextXAlignment.Left })
+		TextColor3 = INK, FontFace = displayFont(), TextSize = 80, TextXAlignment = Enum.TextXAlignment.Left })
 	local hR = new("Frame", { Parent = header, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	local hRl = vlist(hR, 5); hRl.HorizontalAlignment = Enum.HorizontalAlignment.Right
