@@ -867,88 +867,40 @@ function Tab:Dropdown(cfg)
 	return api
 end
 
--- Full HSV colour picker: preview swatch opens a popup with an SV square + hue bar.
+-- Colour picker: pick from preset swatches. Override the set with Swatches = { "RRGGBB", ... }.
 function Tab:Colorpicker(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
-
-	local default = Color3.fromHex(cfg.Default or "A8D8EA")
-	local h, s, v = default:ToHSV()
-	local function cur() return Color3.fromHSV(h, s, v) end
-
-	local preview = new("TextButton", { Parent = ctrl, AutoButtonColor = false, Text = "", BorderSizePixel = 0,
-		Size = UDim2.fromOffset(46, 30), BackgroundColor3 = default })
-	stroke(preview, 1.5, INK); corner(preview, 4)
-
-	local pop = new("Frame", { Parent = win._gui, Visible = false, ZIndex = 70, BackgroundColor3 = ACCENT,
-		BorderSizePixel = 0, Size = UDim2.fromOffset(196, 0), AutomaticSize = Enum.AutomaticSize.Y, Active = true })
-	stroke(pop, 1.5, INK).ZIndex = 70; corner(pop, 6); pad(pop, 10, 10, 10, 10)
-	local pv = vlist(pop, 8); pv.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-	local sv = new("Frame", { Parent = pop, LayoutOrder = 1, Size = UDim2.fromOffset(176, 130), ZIndex = 71,
-		BackgroundColor3 = Color3.fromHSV(h, 1, 1), BorderSizePixel = 0 })
-	corner(sv, 4)
-	local white = new("Frame", { Parent = sv, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ZIndex = 71 })
-	corner(white, 4)
-	new("UIGradient", { Parent = white, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1) }) })
-	local black = new("Frame", { Parent = sv, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0,0,0), BorderSizePixel = 0, ZIndex = 71 })
-	corner(black, 4)
-	new("UIGradient", { Parent = black, Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0) }) })
-	local svCur = new("Frame", { Parent = sv, Size = UDim2.fromOffset(10,10), AnchorPoint = Vector2.new(0.5,0.5), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ZIndex = 72 })
-	stroke(svCur, 1.5, INK); corner(svCur, 999)
-
-	local hue = new("Frame", { Parent = pop, LayoutOrder = 2, Size = UDim2.fromOffset(176, 14), BorderSizePixel = 0, ZIndex = 71 })
-	corner(hue, 999)
-	new("UIGradient", { Parent = hue, Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0.00, Color3.fromHSV(0,1,1)),   ColorSequenceKeypoint.new(0.17, Color3.fromHSV(0.17,1,1)),
-		ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.33,1,1)),ColorSequenceKeypoint.new(0.50, Color3.fromHSV(0.50,1,1)),
-		ColorSequenceKeypoint.new(0.67, Color3.fromHSV(0.67,1,1)),ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.83,1,1)),
-		ColorSequenceKeypoint.new(1.00, Color3.fromHSV(1,1,1)) }) })
-	local hueCur = new("Frame", { Parent = hue, Size = UDim2.fromOffset(4,18), AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(h,0,0.5,0), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ZIndex = 72 })
-	stroke(hueCur, 1.5, INK); corner(hueCur, 2)
-
-	local function paint()
-		preview.BackgroundColor3 = cur()
-		sv.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-		svCur.Position = UDim2.new(s, 0, 1 - v, 0)
-		hueCur.Position = UDim2.new(h, 0, 0.5, 0)
-	end
-	local function fire() paint(); if cfg.Callback then task.spawn(cfg.Callback, cur()) end end
-	paint()
-
-	local function dragArea(frame, cb)
-		local drag
-		local function upd(x, y)
-			cb(math.clamp((x - frame.AbsolutePosition.X)/frame.AbsoluteSize.X, 0, 1),
-			   math.clamp((y - frame.AbsolutePosition.Y)/math.max(1, frame.AbsoluteSize.Y), 0, 1))
+	local swatches = cfg.Swatches or { "A8D8EA", "EAA8D8", "C9A8EA", "A8EAB6", "EAD8A8" }
+	local value = cfg.Default or swatches[1]
+	local row = new("Frame", { Parent = ctrl, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X,
+		Size = UDim2.fromOffset(0, 30) })
+	hlist(row, 10).VerticalAlignment = Enum.VerticalAlignment.Center
+	local btns = {}
+	local function render()
+		for hex, b in pairs(btns) do
+			local a = hex == value
+			b.stroke.Transparency = a and 0 or 0.8; b.stroke.Thickness = a and 2.5 or 2
 		end
-		frame.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true; upd(i.Position.X,i.Position.Y) end end)
-		UserInputService.InputChanged:Connect(function(i) if drag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then upd(i.Position.X,i.Position.Y) end end)
-		UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end)
 	end
-	dragArea(sv, function(rx, ry) s = rx; v = 1 - ry; fire() end)
-	dragArea(hue, function(rx) h = rx; fire() end)
-
-	preview.MouseButton1Click:Connect(function()
-		if win._openDropdown and win._openDropdown ~= pop then win._openDropdown.Visible = false end
-		if pop.Visible then pop.Visible = false; return end
-		local ap = preview.AbsolutePosition
-		pop.Position = UDim2.fromOffset(ap.X + preview.AbsoluteSize.X - 196, ap.Y + preview.AbsoluteSize.Y + 4)
-		pop.Visible = true; win._openDropdown = pop
-	end)
-
+	for i, hex in ipairs(swatches) do
+		local b = new("TextButton", { Parent = row, LayoutOrder = i, AutoButtonColor = false, Text = "",
+			BorderSizePixel = 0, Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromHex(hex) })
+		local st = stroke(b, 2, INK); corner(b, 4)
+		btns[hex] = { btn = b, stroke = st }
+		b.MouseButton1Click:Connect(function()
+			value = hex; render()
+			if cfg.Callback then task.spawn(cfg.Callback, Color3.fromHex(hex)) end
+		end)
+	end
+	render()
 	local api = {
-		Set = function(_, c)
-			if typeof(c) == "Color3" then h, s, v = c:ToHSV()
-			else local ok, col = pcall(Color3.fromHex, tostring(c)); if ok then h, s, v = col:ToHSV() end end
-			paint()
-		end,
-		Get = function() return cur() end,
+		Set = function(_, c) value = (typeof(c) == "Color3") and c:ToHex() or tostring(c); render() end,
+		Get = function() return Color3.fromHex(value) end,
 	}
-	bindFlag(win, cfg, function() return cur():ToHex() end,
-		function(hex) local ok, col = pcall(Color3.fromHex, tostring(hex)); if ok then h, s, v = col:ToHSV(); paint() end end)
+	bindFlag(win, cfg, function() return value end, function(hex) value = tostring(hex); render() end)
 	return api
 end
 

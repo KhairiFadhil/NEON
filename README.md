@@ -46,7 +46,7 @@ See `example.lua` for a full reproduction of the design (all 5 tabs, every contr
 - **Element** (common): `Title`, `Desc`, `Badge` (`"SIGNATURE"` / `"SPICY"` filled, anything else outlined), `Feature` (boxed label), `Default`, `Callback`, `Flag` (config key override — defaults to `Title`)
 - **Slider**: `Min`, `Max`, `Step`, `Unit`
 - **Dropdown / Segmented**: `Options` (array)
-- **Colorpicker**: `Default` (hex) — full HSV picker (SV square + hue bar)
+- **Colorpicker**: `Default` (hex), `Swatches` (array of hex preset choices)
 
 Most elements return `{ Set, Get }`.
 
