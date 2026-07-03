@@ -431,7 +431,11 @@ function NEON:CreateWindow(cfg)
 	-- footer); a tall tab caps at max and scrolls. ScrollingFrame's own AutomaticSize ignores
 	-- UISizeConstraint, so we size the frame from the layout's content size ourselves.
 	local function fitScroll()
-		scroll.Size = UDim2.new(1, 0, 0, math.min(scrollLayout.AbsoluteContentSize.Y, win._scrollMaxH))
+		-- Use CanvasSize (LOCAL/unscaled, set by AutomaticCanvasSize) not AbsoluteContentSize
+		-- (screen pixels, scaled by the panel UIScale). Mixing the scaled value with the local
+		-- scroll.Size.Offset over-sized the frame, leaving a gap above the footer when a short
+		-- tab followed a tall one.
+		scroll.Size = UDim2.new(1, 0, 0, math.min(scroll.CanvasSize.Y.Offset, win._scrollMaxH))
 	end
 	scrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(fitScroll)
 	win._fitScroll = fitScroll
