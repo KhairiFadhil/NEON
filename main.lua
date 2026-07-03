@@ -489,11 +489,21 @@ function NEON:CreateWindow(cfg)
 		if i.KeyCode == win._key then panel.Visible = not panel.Visible end
 	end)
 
-	-- entry animation
-	local target = panel.Position
-	panel.Position = UDim2.fromOffset(target.X.Offset, target.Y.Offset - 30)
-	win._restorePos = target
-	tween(panel, { Position = target }, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out))
+	-- initial state (Minimized = true starts collapsed) + slide-down entry with ease-out --------
+	win._restorePos = UDim2.fromOffset(60, 60)   -- where the maximized panel rests
+	local restPos = win._restorePos
+	if cfg.Minimized then
+		win._min = true
+		body.Visible = false
+		body.AutomaticSize = Enum.AutomaticSize.None
+		body.Size = UDim2.new(1, 0, 0, 0)
+		panel.Size = UDim2.new(0, 392, 0, 0)
+		win:_setMinStyle(true, TweenInfo.new(0))   -- apply minimized styling instantly
+		local vpx = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280
+		restPos = UDim2.fromOffset(math.floor((vpx - 392) / 2), 20)
+	end
+	panel.Position = UDim2.fromOffset(restPos.X.Offset, restPos.Y.Offset - 64)   -- start above the rest spot
+	tween(panel, { Position = restPos }, TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out))
 
 	return win
 end
@@ -529,11 +539,19 @@ function NEON:_toggleMin()
 			Position = UDim2.fromOffset(math.floor((panel.Parent.AbsoluteSize.X - w) / 2), 20) }, EASE)
 		task.delay(DUR, function() if self._min then body.Visible = false end end)
 	else
-		body.Visible = true
-		body.AutomaticSize = Enum.AutomaticSize.None
 		body.ClipsDescendants = true
+		local targetH = self._bodyH
+		if not targetH or targetH <= 0 then   -- never captured (e.g. started minimized): measure it
+			body.AutomaticSize = Enum.AutomaticSize.Y
+			body.Size = UDim2.new(1, 0, 0, 0)
+			task.wait()
+			targetH = body.AbsoluteSize.Y
+		end
+		body.AutomaticSize = Enum.AutomaticSize.None
 		body.Size = UDim2.new(1, 0, 0, 0)
-		tween(body, { Size = UDim2.new(1, 0, 0, self._bodyH or 0) }, EASE)  -- accordion open
+		body.Visible = true
+		self._bodyH = targetH
+		tween(body, { Size = UDim2.new(1, 0, 0, targetH) }, EASE)  -- accordion open
 		tween(panel, { Size = UDim2.new(0, 772, 0, 0), Position = self._restorePos }, EASE)
 		task.delay(DUR, function()
 			if not self._min then body.AutomaticSize = Enum.AutomaticSize.Y; body.ClipsDescendants = false end
