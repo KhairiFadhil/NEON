@@ -336,13 +336,15 @@ function NEON:CreateWindow(cfg)
 	vlist(body, 0)
 	win._body = body
 
-	-- TAB BAR
+	-- TAB BAR. The bottom border must live OUTSIDE the tab row's layout — a full-width border
+	-- inside the horizontal layout counts as a layout item and pushes every tab off the edge.
 	local tabBar = new("Frame", { Parent = body, LayoutOrder = 1, BackgroundColor3 = ACCENT,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 46) })
 	new("Frame", { Parent = tabBar, BackgroundColor3 = INK, BorderSizePixel = 0,
 		Size = UDim2.new(1, 0, 0, 1.5), Position = UDim2.new(0, 0, 1, -1.5) })
-	hlist(tabBar, 0)
-	win._tabBar = tabBar
+	local tabsRow = new("Frame", { Parent = tabBar, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) })
+	hlist(tabsRow, 0)
+	win._tabBar = tabsRow
 
 	-- HEADER
 	local header = new("Frame", { Parent = body, LayoutOrder = 2, BackgroundTransparency = 1,
