@@ -153,6 +153,18 @@ local function microFade(btn, parts, dim)
 	apply()
 end
 
+-- Config plumbing. autosaveCb wraps the user's callback so any UI change marks the window
+-- dirty (debounced auto-save). bindFlag exposes the value under its Flag/Title key so
+-- SaveConfig/LoadConfig can round-trip it.
+local function autosaveCb(win, cfg)
+	local userCb = cfg.Callback
+	cfg.Callback = function(...) if userCb then userCb(...) end; win:_dirty() end
+end
+local function bindFlag(win, cfg, get, set)
+	local key = cfg.Flag or cfg.Title
+	if key then win._flags[key] = { get = get, set = set } end
+end
+
 ------------------------------------------------------------------- ELEMENTS
 -- Shared row: left (label/badge/desc) grows, control sits right.
 local function makeRow(page)
@@ -218,7 +230,8 @@ NEON.__index = NEON
 function NEON:CreateWindow(cfg)
 	cfg = cfg or {}
 	local gui = mountRoot()
-	local win = setmetatable({ _gui = gui, _tabs = {}, _toggleStates = {}, _openDropdown = nil }, NEON)
+	local win = setmetatable({ _gui = gui, _tabs = {}, _toggleStates = {}, _openDropdown = nil,
+		_flags = {}, _configName = cfg.ConfigName }, NEON)
 
 	local W, LIST_H = 772, 352
 	local panel = new("Frame", { Parent = gui, BackgroundColor3 = ACCENT, BorderSizePixel = 0,
@@ -293,10 +306,20 @@ function NEON:CreateWindow(cfg)
 		new("Frame", { Parent = bcol, LayoutOrder = i, BackgroundColor3 = INK, BorderSizePixel = 0,
 			Size = UDim2.fromOffset(i == 3 and 16 or 24, 2.5) })
 	end
-	local titleWrap = new("Frame", { Parent = navL, LayoutOrder = 2, BackgroundTransparency = 1,
+	-- optional logo/icon (image) before the title; set Title="" for an icon-only header
+	if cfg.Icon then
+		local icon = new("ImageLabel", { Parent = navL, LayoutOrder = 2, BackgroundTransparency = 1,
+			Image = cfg.Icon, Size = UDim2.fromOffset(cfg.IconSize or 30, cfg.IconSize or 30),
+			ScaleType = Enum.ScaleType.Fit })
+		if cfg.IconCorner ~= false then corner(icon, cfg.IconCorner or 8) end
+		win._icon = icon
+	end
+	local titleWrap = new("Frame", { Parent = navL, LayoutOrder = 3, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
-	local t = label(titleWrap, string.upper(cfg.Title or "MODKIT") .. "®", 26, Enum.FontWeight.Heavy, INK)
+	local t = label(titleWrap, string.upper(tostring(cfg.Title or "MODKIT")), cfg.TitleSize or 26, Enum.FontWeight.Heavy, INK)
 	t.FontFace = bodyFont(Enum.FontWeight.Heavy)
+	titleWrap.Visible = (t.Text ~= "")
+	win._title = t
 
 	-- SESSION SUBSTRIP -----------------------------------------------------
 	local sub = new("Frame", { Parent = panel, LayoutOrder = 2, BackgroundColor3 = ACCENT,
@@ -308,9 +331,16 @@ function NEON:CreateWindow(cfg)
 	local subL = new("Frame", { Parent = sub, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 20, 0.5, 0), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	hlist(subL, 12).VerticalAlignment = Enum.VerticalAlignment.Center
-	local avatar = new("TextLabel", { Parent = subL, LayoutOrder = 1, BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(26, 26), Text = "W", TextColor3 = INK, FontFace = bodyFont(), TextSize = 12 })
+	local avatar
+	if cfg.Avatar then   -- customizable image slot
+		avatar = new("ImageLabel", { Parent = subL, LayoutOrder = 1, BackgroundTransparency = 1,
+			Image = cfg.Avatar, Size = UDim2.fromOffset(26, 26), ScaleType = Enum.ScaleType.Crop })
+	else
+		avatar = new("TextLabel", { Parent = subL, LayoutOrder = 1, BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(26, 26), Text = cfg.AvatarText or "W", TextColor3 = INK, FontFace = bodyFont(), TextSize = 12 })
+	end
 	local avatarStroke = stroke(avatar, 1.5, INK); corner(avatar, 6)
+	win._avatar = avatar
 	local sesWrap = new("Frame", { Parent = subL, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	hlist(sesWrap, 7).VerticalAlignment = Enum.VerticalAlignment.Center
@@ -318,16 +348,18 @@ function NEON:CreateWindow(cfg)
 		Size = UDim2.fromOffset(7, 7) })
 	tween(dot, { BackgroundTransparency = 0.7 },
 		TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true))
-	local ses = label(sesWrap, string.upper(cfg.SubTitle or "Session Active · Wanderer"), 11,
+	local ses = label(sesWrap, string.upper(tostring(cfg.SubTitle or "Session Active · Wanderer")), 11,
 		Enum.FontWeight.Medium, INK)
 	ses.LayoutOrder = 2
+	win._ses = ses
 	local subArrow = new("TextLabel", { Parent = sub, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -20, 0.5, 0), Size = UDim2.fromOffset(16, 16), Text = "→",
 		TextColor3 = INK, FontFace = bodyFont(), TextSize = 16 })
 	-- refs for the minimise animation: navbar shrinks, substrip inverts to ink bg / aqua ink
 	win._nav, win._navL, win._sub = nav, navL, sub
 	win._subBorders = { subTopB, subBotB }
-	win._subInkText = { avatar, ses, subArrow }
+	win._subInkText = { ses, subArrow }
+	if avatar:IsA("TextLabel") then table.insert(win._subInkText, avatar) end
 	win._subInkFill = { dot }
 	win._avatarStroke = avatarStroke
 
@@ -399,10 +431,16 @@ function NEON:CreateWindow(cfg)
 	corner(footer, 4)   -- rounds the panel's BOTTOM corners (top corners hidden behind the list)
 	new("Frame", { Parent = footer, BackgroundColor3 = INK, BorderSizePixel = 0,
 		Size = UDim2.new(1, 0, 0, 1.5), Position = UDim2.fromScale(0, 0) })
-	local fL = label(footer, "BUILD " .. (cfg.Build or "2.4.1") .. " · STANDALONE", 10, Enum.FontWeight.Medium, INK)
+	local footerText = cfg.Footer or ("BUILD " .. (cfg.Build or "1.0") .. " · STANDALONE")
+	local fL = label(footer, tostring(footerText), 10, Enum.FontWeight.Medium, INK)
 	fL.AnchorPoint = Vector2.new(0, 0.5); fL.Position = UDim2.new(0, 24, 0.5, 0); fL.TextTransparency = 0.53
-	local fR = label(footer, "◄ TAB ► NAVIGATE · ESC CLOSE", 10, Enum.FontWeight.Medium, INK)
-	fR.AnchorPoint = Vector2.new(1, 0.5); fR.Position = UDim2.new(1, -24, 0.5, 0); fR.TextXAlignment = Enum.TextXAlignment.Right
+	win._footerL = fL
+	-- keyboard hint removed; only shows a right-side footer if you explicitly pass FooterRight
+	if cfg.FooterRight then
+		local fR = label(footer, tostring(cfg.FooterRight), 10, Enum.FontWeight.Medium, INK)
+		fR.AnchorPoint = Vector2.new(1, 0.5); fR.Position = UDim2.new(1, -24, 0.5, 0); fR.TextXAlignment = Enum.TextXAlignment.Right
+		win._footerR = fR
+	end
 
 	-- interactions ---------------------------------------------------------
 	bindDrag(nav, panel, "move", function(startPos, d)
@@ -514,6 +552,46 @@ function NEON:_selectTab(tab)
 	self._catLbl.Text = "CATEGORY — " .. string.upper(tab._title)
 end
 
+-- Runtime customisation ------------------------------------------------------
+function NEON:SetTitle(text)
+	if self._title then self._title.Text = string.upper(tostring(text)); self._title.Parent.Visible = (self._title.Text ~= "") end
+end
+function NEON:SetSubTitle(text) if self._ses then self._ses.Text = string.upper(tostring(text)) end end
+function NEON:SetFooter(text) if self._footerL then self._footerL.Text = tostring(text) end end
+function NEON:SetIcon(image) if self._icon then self._icon.Image = image end end
+function NEON:SetAvatarImage(image) if self._avatar and self._avatar:IsA("ImageLabel") then self._avatar.Image = image end end
+
+-- Config save/load (executor filesystem) -------------------------------------
+function NEON:_cfgPath(name) return "NEON_" .. tostring(name or self._configName or "default") .. ".json" end
+function NEON:SaveConfig(name)
+	local HttpService = game:GetService("HttpService")
+	local data = {}
+	for k, f in pairs(self._flags) do local ok, v = pcall(f.get); if ok then data[k] = v end end
+	return pcall(function() writefile(self:_cfgPath(name), HttpService:JSONEncode(data)) end)
+end
+function NEON:LoadConfig(name)
+	local HttpService = game:GetService("HttpService")
+	local path = self:_cfgPath(name)
+	local ok, data = pcall(function() if isfile and isfile(path) then return HttpService:JSONDecode(readfile(path)) end end)
+	if ok and type(data) == "table" then
+		self._loading = true
+		for k, v in pairs(data) do local f = self._flags[k]; if f then pcall(f.set, v) end end
+		self._loading = false
+		return true
+	end
+	return false
+end
+function NEON:_dirty()
+	if not self._configName or self._loading then return end
+	self._pendingSave = true
+	if self._saving then return end
+	self._saving = true
+	task.delay(0.4, function()
+		self._saving = false
+		if self._pendingSave then self._pendingSave = false; self:SaveConfig() end
+	end)
+end
+
 ------------------------------------------------------------------- Tab
 local Tab = {}
 Tab.__index = Tab
@@ -561,6 +639,7 @@ NEON.Tab = NEON.CreateTab
 ------------------------------------------------------------------- controls
 function Tab:Toggle(cfg)
 	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local id = cfg.Title
@@ -582,10 +661,14 @@ function Tab:Toggle(cfg)
 		if cfg.Callback then task.spawn(cfg.Callback, on) end
 	end)
 	win:_refreshCount()
-	return { Set = function(_, v) on = v and true or false; render() end, Get = function() return on end }
+	local api = { Set = function(_, v) on = v and true or false; render() end, Get = function() return on end }
+	bindFlag(win, cfg, function() return on end, function(v) api:Set(v) end)
+	return api
 end
 
 function Tab:Checkbox(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local on = cfg.Default and true or false
@@ -599,11 +682,15 @@ function Tab:Checkbox(cfg)
 		on = not on; fill.BackgroundTransparency = on and 0 or 1
 		if cfg.Callback then task.spawn(cfg.Callback, on) end
 	end)
-	return { Set = function(_, v) on = v and true or false; fill.BackgroundTransparency = on and 0 or 1 end,
+	local api = { Set = function(_, v) on = v and true or false; fill.BackgroundTransparency = on and 0 or 1 end,
 		Get = function() return on end }
+	bindFlag(win, cfg, function() return on end, function(v) api:Set(v) end)
+	return api
 end
 
 function Tab:Slider(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local min, max, step = cfg.Min or 0, cfg.Max or 100, cfg.Step or 1
@@ -643,10 +730,14 @@ function Tab:Slider(cfg)
 	UserInputService.InputEnded:Connect(function(i)
 		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
 	end)
-	return { Set = function(_, v) apply(v) end, Get = function() return value end }
+	local api = { Set = function(_, v) apply(v) end, Get = function() return value end }
+	bindFlag(win, cfg, function() return value end, function(v) api:Set(v) end)
+	return api
 end
 
 function Tab:Input(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local box = new("TextBox", { Parent = ctrl, Size = UDim2.fromOffset(210, 36), BackgroundTransparency = 1,
@@ -658,10 +749,14 @@ function Tab:Input(cfg)
 		box.Text = string.upper(box.Text)
 		if cfg.Callback then task.spawn(cfg.Callback, box.Text) end
 	end)
-	return { Set = function(_, v) box.Text = string.upper(tostring(v)) end, Get = function() return box.Text end }
+	local api = { Set = function(_, v) box.Text = string.upper(tostring(v)) end, Get = function() return box.Text end }
+	bindFlag(win, cfg, function() return box.Text end, function(v) api:Set(v) end)
+	return api
 end
 
 function Tab:Keybind(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local key = tostring(cfg.Default or "NONE")
@@ -682,10 +777,15 @@ function Tab:Keybind(cfg)
 			if cfg.Callback then task.spawn(cfg.Callback, i.KeyCode) end
 		end
 	end)
-	return { Get = function() return key end }
+	local function setKey(v) key = tostring(v); btn.Text = "[ " .. string.upper(key) .. " ]" end
+	local api = { Set = function(_, v) setKey(v) end, Get = function() return key end }
+	bindFlag(win, cfg, function() return key end, function(v) setKey(v) end)
+	return api
 end
 
 function Tab:Segmented(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local value = cfg.Default or (cfg.Options and cfg.Options[1])
@@ -717,11 +817,14 @@ function Tab:Segmented(cfg)
 		end)
 	end
 	render()
-	return { Set = function(_, v) value = v; render() end, Get = function() return value end }
+	local api = { Set = function(_, v) value = v; render() end, Get = function() return value end }
+	bindFlag(win, cfg, function() return value end, function(v) api:Set(v) end)
+	return api
 end
 
 function Tab:Dropdown(cfg)
 	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local value = cfg.Default or (cfg.Options and cfg.Options[1])
@@ -759,36 +862,94 @@ function Tab:Dropdown(cfg)
 		menu.Size = UDim2.fromOffset(btn.AbsoluteSize.X, 0)
 		menu.Visible = true; win._openDropdown = menu
 	end)
-	return { Set = function(_, v) value = v; vlbl.Text = string.upper(v) end, Get = function() return value end }
+	local api = { Set = function(_, v) value = v; vlbl.Text = string.upper(v) end, Get = function() return value end }
+	bindFlag(win, cfg, function() return value end, function(v) api:Set(v) end)
+	return api
 end
 
+-- Full HSV colour picker: preview swatch opens a popup with an SV square + hue bar.
 function Tab:Colorpicker(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
-	local swatches = cfg.Swatches or { "A8D8EA", "EAA8D8", "C9A8EA", "A8EAB6", "EAD8A8" }
-	local value = cfg.Default or swatches[1]
-	local row = new("Frame", { Parent = ctrl, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.fromOffset(0, 30) })
-	hlist(row, 10).VerticalAlignment = Enum.VerticalAlignment.Center
-	local btns = {}
-	local function render()
-		for hex, b in pairs(btns) do
-			local a = hex == value
-			b.stroke.Color = INK; b.stroke.Transparency = a and 0 or 0.8; b.stroke.Thickness = a and 2.5 or 2
+
+	local default = Color3.fromHex(cfg.Default or "A8D8EA")
+	local h, s, v = default:ToHSV()
+	local function cur() return Color3.fromHSV(h, s, v) end
+
+	local preview = new("TextButton", { Parent = ctrl, AutoButtonColor = false, Text = "", BorderSizePixel = 0,
+		Size = UDim2.fromOffset(46, 30), BackgroundColor3 = default })
+	stroke(preview, 1.5, INK); corner(preview, 4)
+
+	local pop = new("Frame", { Parent = win._gui, Visible = false, ZIndex = 70, BackgroundColor3 = ACCENT,
+		BorderSizePixel = 0, Size = UDim2.fromOffset(196, 0), AutomaticSize = Enum.AutomaticSize.Y, Active = true })
+	stroke(pop, 1.5, INK).ZIndex = 70; corner(pop, 6); pad(pop, 10, 10, 10, 10)
+	local pv = vlist(pop, 8); pv.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local sv = new("Frame", { Parent = pop, LayoutOrder = 1, Size = UDim2.fromOffset(176, 130), ZIndex = 71,
+		BackgroundColor3 = Color3.fromHSV(h, 1, 1), BorderSizePixel = 0 })
+	corner(sv, 4)
+	local white = new("Frame", { Parent = sv, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ZIndex = 71 })
+	corner(white, 4)
+	new("UIGradient", { Parent = white, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1) }) })
+	local black = new("Frame", { Parent = sv, Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0,0,0), BorderSizePixel = 0, ZIndex = 71 })
+	corner(black, 4)
+	new("UIGradient", { Parent = black, Rotation = 90, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0) }) })
+	local svCur = new("Frame", { Parent = sv, Size = UDim2.fromOffset(10,10), AnchorPoint = Vector2.new(0.5,0.5), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ZIndex = 72 })
+	stroke(svCur, 1.5, INK); corner(svCur, 999)
+
+	local hue = new("Frame", { Parent = pop, LayoutOrder = 2, Size = UDim2.fromOffset(176, 14), BorderSizePixel = 0, ZIndex = 71 })
+	corner(hue, 999)
+	new("UIGradient", { Parent = hue, Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0.00, Color3.fromHSV(0,1,1)),   ColorSequenceKeypoint.new(0.17, Color3.fromHSV(0.17,1,1)),
+		ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.33,1,1)),ColorSequenceKeypoint.new(0.50, Color3.fromHSV(0.50,1,1)),
+		ColorSequenceKeypoint.new(0.67, Color3.fromHSV(0.67,1,1)),ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.83,1,1)),
+		ColorSequenceKeypoint.new(1.00, Color3.fromHSV(1,1,1)) }) })
+	local hueCur = new("Frame", { Parent = hue, Size = UDim2.fromOffset(4,18), AnchorPoint = Vector2.new(0.5,0.5), Position = UDim2.new(h,0,0.5,0), BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, ZIndex = 72 })
+	stroke(hueCur, 1.5, INK); corner(hueCur, 2)
+
+	local function paint()
+		preview.BackgroundColor3 = cur()
+		sv.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+		svCur.Position = UDim2.new(s, 0, 1 - v, 0)
+		hueCur.Position = UDim2.new(h, 0, 0.5, 0)
+	end
+	local function fire() paint(); if cfg.Callback then task.spawn(cfg.Callback, cur()) end end
+	paint()
+
+	local function dragArea(frame, cb)
+		local drag
+		local function upd(x, y)
+			cb(math.clamp((x - frame.AbsolutePosition.X)/frame.AbsoluteSize.X, 0, 1),
+			   math.clamp((y - frame.AbsolutePosition.Y)/math.max(1, frame.AbsoluteSize.Y), 0, 1))
 		end
+		frame.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=true; upd(i.Position.X,i.Position.Y) end end)
+		UserInputService.InputChanged:Connect(function(i) if drag and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then upd(i.Position.X,i.Position.Y) end end)
+		UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drag=false end end)
 	end
-	for i, hex in ipairs(swatches) do
-		local b = new("TextButton", { Parent = row, LayoutOrder = i, AutoButtonColor = false, Text = "",
-			BorderSizePixel = 0, Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromHex(hex) })
-		local st = stroke(b, 2, INK); corner(b, 4)
-		btns[hex] = { btn = b, stroke = st }
-		b.MouseButton1Click:Connect(function()
-			value = hex; render()
-			if cfg.Callback then task.spawn(cfg.Callback, Color3.fromHex(hex)) end
-		end)
-	end
-	render()
-	return { Set = function(_, v) value = v; render() end, Get = function() return Color3.fromHex(value) end }
+	dragArea(sv, function(rx, ry) s = rx; v = 1 - ry; fire() end)
+	dragArea(hue, function(rx) h = rx; fire() end)
+
+	preview.MouseButton1Click:Connect(function()
+		if win._openDropdown and win._openDropdown ~= pop then win._openDropdown.Visible = false end
+		if pop.Visible then pop.Visible = false; return end
+		local ap = preview.AbsolutePosition
+		pop.Position = UDim2.fromOffset(ap.X + preview.AbsoluteSize.X - 196, ap.Y + preview.AbsoluteSize.Y + 4)
+		pop.Visible = true; win._openDropdown = pop
+	end)
+
+	local api = {
+		Set = function(_, c)
+			if typeof(c) == "Color3" then h, s, v = c:ToHSV()
+			else local ok, col = pcall(Color3.fromHex, tostring(c)); if ok then h, s, v = col:ToHSV() end end
+			paint()
+		end,
+		Get = function() return cur() end,
+	}
+	bindFlag(win, cfg, function() return cur():ToHex() end,
+		function(hex) local ok, col = pcall(Color3.fromHex, tostring(hex)); if ok then h, s, v = col:ToHSV(); paint() end end)
+	return api
 end
 
 function Tab:Button(cfg)
@@ -809,7 +970,23 @@ function Tab:Button(cfg)
 	return btn
 end
 
-function Tab:Section() end -- ponytail: no visual section header in the design; no-op placeholder.
+-- Section header: a divider line + small bar + uppercase label to group controls.
+function Tab:Section(cfg)
+	local title = (type(cfg) == "table" and (cfg.Title or "")) or tostring(cfg or "")
+	local sec = new("Frame", { Parent = self._page, BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	vlist(sec, 0)
+	new("Frame", { Parent = sec, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.78,
+		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
+	local inner = new("Frame", { Parent = sec, LayoutOrder = 2, BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	pad(inner, 15, 24, 7, 24)
+	hlist(inner, 9).VerticalAlignment = Enum.VerticalAlignment.Center
+	new("Frame", { Parent = inner, LayoutOrder = 1, BackgroundColor3 = INK, BorderSizePixel = 0, Size = UDim2.fromOffset(16, 2.5) })
+	local l = label(inner, string.upper(title), 11, Enum.FontWeight.ExtraBold, INK)
+	l.LayoutOrder = 2; l.TextTransparency = 0.15
+	return sec
+end
 
 ------------------------------------------------------------------- Notify / toast
 function NEON:Notify(text)
