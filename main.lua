@@ -347,17 +347,17 @@ function NEON:CreateWindow(cfg)
 	-- HEADER
 	local header = new("Frame", { Parent = body, LayoutOrder = 2, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(header, 22, 24, 12, 24)
+	pad(header, 12, 24, 8, 24)
 	local hrow = hlist(header, 12); hrow.VerticalAlignment = Enum.VerticalAlignment.Bottom
 	local hL = new("Frame", { Parent = header, LayoutOrder = 1, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(0, 0, 0, 0) })
 	new("UIFlexItem", { Parent = hL, FlexMode = Enum.UIFlexMode.Fill })
-	vlist(hL, 5)
+	vlist(hL, 2)
 	local cat = label(hL, "CATEGORY — EDITING", 10, Enum.FontWeight.Medium, INK)
 	cat.LayoutOrder = 1; cat.TextTransparency = 0.47
 	local bigTitle = new("TextLabel", { Parent = hL, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0), Text = "",
-		TextColor3 = INK, FontFace = displayFont(), TextSize = 74, TextXAlignment = Enum.TextXAlignment.Left })
+		TextColor3 = INK, FontFace = displayFont(), TextSize = 66, TextXAlignment = Enum.TextXAlignment.Left })
 	local hR = new("Frame", { Parent = header, LayoutOrder = 2, BackgroundTransparency = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
 	local hRl = vlist(hR, 5); hRl.HorizontalAlignment = Enum.HorizontalAlignment.Right
@@ -492,6 +492,7 @@ function NEON:_refreshCount()
 end
 
 function NEON:_selectTab(tab)
+	self._activeTab = tab
 	if self._openDropdown then self._openDropdown.Visible = false end
 	for _, tb in ipairs(self._tabs) do
 		local active = tb == tab
@@ -516,7 +517,8 @@ function NEON:CreateTab(cfg)
 	vlist(page, 0)
 	local btn = new("TextButton", { Parent = win._tabBar, BackgroundColor3 = ACCENT, BorderSizePixel = 0,
 		Text = "", Size = UDim2.new(1, 0, 1, 0), AutoButtonColor = false })
-	new("Frame", { Parent = btn, BackgroundColor3 = INK, BackgroundTransparency = 0.81, BorderSizePixel = 0,
+	-- visible divider between tabs so 5 buttons read as 5 buttons (not one cyan bar)
+	new("Frame", { Parent = btn, BackgroundColor3 = INK, BackgroundTransparency = 0.6, BorderSizePixel = 0,
 		Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(1, -1, 0, 0) })
 	local lbl = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
 		Text = string.upper(cfg.Title or "TAB"), TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.ExtraBold),
@@ -524,6 +526,9 @@ function NEON:CreateTab(cfg)
 
 	local tab = setmetatable({ _win = win, _page = page, _btn = btn, _lbl = lbl, _title = cfg.Title or "TAB" }, Tab)
 	btn.MouseButton1Click:Connect(function() win:_selectTab(tab) end)
+	-- hover feedback (skip the active tab, which _selectTab paints ink)
+	btn.MouseEnter:Connect(function() if win._activeTab ~= tab then tween(btn, { BackgroundColor3 = ACCENT:Lerp(INK, 0.16) }) end end)
+	btn.MouseLeave:Connect(function() if win._activeTab ~= tab then tween(btn, { BackgroundColor3 = ACCENT }) end end)
 	table.insert(win._tabs, tab)
 	-- Equal-width tabs via scale. (UIFlexItem Fill collapses to 0 when EVERY sibling is Fill,
 	-- so we size explicitly and re-split on each new tab.)
