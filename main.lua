@@ -901,11 +901,16 @@ function Tab:Dropdown(cfg)
 
 	local function positionAt()
 		if not btn.Parent then return end
-		local ap = btn.AbsolutePosition
-		menu.Position = UDim2.fromOffset(ap.X, ap.Y + btn.AbsoluteSize.Y + 6)
+		-- Menu + shadow are ScreenGui children, so use GUI-LOCAL coords (panel.Position is local;
+		-- add the button's offset within the panel). Using AbsolutePosition double-counts the
+		-- ScreenGui's own offset and drifts the shadow away from the menu.
+		local p = win._panel
+		local bx = p.Position.X.Offset + (btn.AbsolutePosition.X - p.AbsolutePosition.X)
+		local by = p.Position.Y.Offset + (btn.AbsolutePosition.Y - p.AbsolutePosition.Y) + btn.AbsoluteSize.Y + 6
+		menu.Position = UDim2.fromOffset(bx, by)
 		menu.Size = UDim2.fromOffset(btn.AbsoluteSize.X, 0)
-		shadow.Position = UDim2.fromOffset(menu.AbsolutePosition.X - SH, menu.AbsolutePosition.Y - SH)
-		shadow.Size = UDim2.fromOffset(menu.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
+		shadow.Position = UDim2.fromOffset(bx - SH, by - SH)
+		shadow.Size = UDim2.fromOffset(btn.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
 	end
 	local function fade(hidden)
 		tween(menu, { BackgroundTransparency = hidden and 1 or 0 }, T)
