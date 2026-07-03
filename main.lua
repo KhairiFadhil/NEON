@@ -381,10 +381,14 @@ function NEON:CreateWindow(cfg)
 
 	-- LIST (scrolling; holds one page per tab)
 	local scroll = new("ScrollingFrame", { Parent = body, LayoutOrder = 4, BackgroundTransparency = 1,
-		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, LIST_H), CanvasSize = UDim2.new(),
-		AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6,
+		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6,
 		ScrollBarImageColor3 = INK, ScrollBarImageTransparency = 0.6,
 		ScrollingDirection = Enum.ScrollingDirection.Y })
+	-- List auto-sizes to its content, capped at this max. So a short tab leaves NO empty gap
+	-- above the footer, and resizing only grows the visible area of tabs that actually overflow.
+	local scrollMax = new("UISizeConstraint", { Parent = scroll,
+		MaxSize = Vector2.new(math.huge, LIST_H), MinSize = Vector2.new(0, 0) })
 	vlist(scroll, 0)
 	win._scroll = scroll
 
@@ -417,7 +421,7 @@ function NEON:CreateWindow(cfg)
 			if win._min then return end
 			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 				dragging = true; startInput = i.Position
-				startW = panel.AbsoluteSize.X; startH = scroll.AbsoluteSize.Y
+				startW = panel.AbsoluteSize.X; startH = scrollMax.MaxSize.Y
 				i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dragging = false end end)
 			end
 		end)
@@ -426,7 +430,7 @@ function NEON:CreateWindow(cfg)
 			if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
 				local d = i.Position - startInput
 				panel.Size = UDim2.new(0, math.clamp(startW + d.X, 560, 1000), 0, 0)
-				scroll.Size = UDim2.new(1, 0, 0, math.clamp(startH + d.Y, 200, 560))
+				scrollMax.MaxSize = Vector2.new(math.huge, math.clamp(startH + d.Y, 200, 560))
 			end
 		end)
 	end
