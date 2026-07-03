@@ -286,6 +286,9 @@ function NEON:CreateWindow(cfg)
 		moveH.Visible = show; resizeH.Visible = show
 		moveH.Position = UDim2.fromOffset(px + s.X / 2, py + s.Y - 7)
 		resizeH.Position = UDim2.fromOffset(px + s.X, py + s.Y)
+		-- keep the list height matched to the active tab's content (the AbsoluteContentSize
+		-- signal can miss a tab switch, leaving a short tab stuck at the previous tall height).
+		if win._fitScroll and not win._min then win._fitScroll() end
 	end)
 	gui.Destroying:Connect(function() uiConn:Disconnect() end)
 
