@@ -342,7 +342,8 @@ function NEON:CreateWindow(cfg)
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 46) })
 	new("Frame", { Parent = tabBar, BackgroundColor3 = INK, BorderSizePixel = 0,
 		Size = UDim2.new(1, 0, 0, 1.5), Position = UDim2.new(0, 0, 1, -1.5) })
-	local tabsRow = new("Frame", { Parent = tabBar, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) })
+	-- leave the bottom 1.5px free so the tab buttons don't cover the border line
+	local tabsRow = new("Frame", { Parent = tabBar, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, -1.5) })
 	hlist(tabsRow, 0)
 	win._tabBar = tabsRow
 
