@@ -36,7 +36,14 @@ local Window = NEON:CreateWindow({
 
     ToggleKey  = Enum.KeyCode.RightShift, -- show/hide the whole menu
     ConfigName = "myscript",            -- enable auto-save to NEON_myscript.json (optional)
+    Minimized  = false,                 -- true = open collapsed into the bar (default false)
 })
+```
+
+> On first appearance the panel slides down into place with an ease-out. Set `Minimized = true`
+> to start collapsed; the hamburger toggles minimize/maximize afterwards.
+
+```lua
 ```
 
 ### Window methods
