@@ -440,7 +440,7 @@ function NEON:CreateWindow(cfg)
 	local footerText = cfg.Footer or ("BUILD " .. (cfg.Build or "1.0") .. " · STANDALONE")
 	local fL = label(footer, tostring(footerText), 10, Enum.FontWeight.Medium, INK)
 	fL.AnchorPoint = Vector2.new(0, 0.5); fL.Position = UDim2.new(0, 24, 0.5, 0); fL.TextTransparency = 0.53
-	win._footerL = fL
+	win._footer, win._footerL = footer, fL
 	-- keyboard hint removed; only shows a right-side footer if you explicitly pass FooterRight
 	if cfg.FooterRight then
 		local fR = label(footer, tostring(cfg.FooterRight), 10, Enum.FontWeight.Medium, INK)
@@ -567,7 +567,10 @@ end
 
 function NEON:_selectTab(tab)
 	self._activeTab = tab
-	if self._openDropdown then self._openDropdown.Visible = false end
+	if self._openDropdown then
+		if self._closePopup then self._closePopup() else self._openDropdown.Visible = false end
+		self._openDropdown = nil; self._closePopup = nil
+	end
 	for _, tb in ipairs(self._tabs) do
 		tb._page.Visible = (tb == tab)
 		if tb._refresh then tb._refresh() end
@@ -583,6 +586,17 @@ function NEON:SetTitle(text)
 end
 function NEON:SetSubTitle(text) if self._ses then self._ses.Text = string.upper(tostring(text)) end end
 function NEON:SetFooter(text) if self._footerL then self._footerL.Text = tostring(text) end end
+-- Live-updatable right footer (e.g. a countdown). Created lazily if it wasn't passed at build time.
+function NEON:SetFooterRight(text)
+	if self._footerR then
+		self._footerR.Text = tostring(text)
+	elseif self._footer then
+		local fR = label(self._footer, tostring(text), 10, Enum.FontWeight.Medium, INK)
+		fR.AnchorPoint = Vector2.new(1, 0.5); fR.Position = UDim2.new(1, -24, 0.5, 0)
+		fR.TextXAlignment = Enum.TextXAlignment.Right
+		self._footerR = fR
+	end
+end
 function NEON:SetIcon(image) if self._icon then self._icon.Image = image end end
 function NEON:SetAvatarImage(image) if self._avatar and self._avatar:IsA("ImageLabel") then self._avatar.Image = image end end
 
@@ -853,40 +867,87 @@ function Tab:Dropdown(cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local value = cfg.Default or (cfg.Options and cfg.Options[1])
-	local btn = new("TextButton", { Parent = ctrl, AutoButtonColor = false, BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(190, 38), Text = "", BorderSizePixel = 0 })
-	stroke(btn, 1.5, INK); corner(btn, 4)
+
+	-- button: no outline, subtle fill + hover tint
+	local btn = new("TextButton", { Parent = ctrl, AutoButtonColor = false, BorderSizePixel = 0,
+		Size = UDim2.fromOffset(190, 38), Text = "", BackgroundColor3 = INK, BackgroundTransparency = 0.9 })
+	corner(btn, 6)
 	local vlbl = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.5, 0), Size = UDim2.new(1, -34, 1, 0), Text = string.upper(value or ""),
-		TextColor3 = INK, FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
-	new("TextLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5),
+		TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
+	local arrow = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -13, 0.5, 0), Size = UDim2.fromOffset(12, 12), Text = "▼", TextColor3 = INK,
 		FontFace = bodyFont(), TextSize = 10 })
-	-- overlay list, parented to the ScreenGui so neither the scroll nor the panel clips it
+
+	-- soft shadow behind the popup (no outline anywhere)
+	local shadow = new("ImageLabel", { Parent = win._gui, Visible = false, ZIndex = 59, BackgroundTransparency = 1,
+		Image = "rbxassetid://6014261993", ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 1,
+		ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450) })
 	local menu = new("Frame", { Parent = win._gui, Visible = false, ZIndex = 60, BackgroundColor3 = ACCENT,
-		BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.fromOffset(190, 0), Active = true })
-	stroke(menu, 1.5, INK).ZIndex = 60; corner(menu, 4)
-	vlist(menu, 0)
-	local function close() menu.Visible = false end
+		BackgroundTransparency = 1, BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.Y,
+		Size = UDim2.fromOffset(190, 0), Active = true })
+	corner(menu, 6)
+	local scl = new("UIScale", { Parent = menu, Scale = 0.96 })
+	vlist(menu, 0); pad(menu, 4, 0, 4, 0)
+
+	local opts, isOpen, followConn = {}, false, nil
+	local T = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	local SH = 16
+
+	local function positionAt()
+		if not btn.Parent then return end
+		local ap = btn.AbsolutePosition
+		menu.Position = UDim2.fromOffset(ap.X, ap.Y + btn.AbsoluteSize.Y + 6)
+		menu.Size = UDim2.fromOffset(btn.AbsoluteSize.X, 0)
+		shadow.Position = UDim2.fromOffset(menu.AbsolutePosition.X - SH, menu.AbsolutePosition.Y - SH)
+		shadow.Size = UDim2.fromOffset(menu.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
+	end
+	local function fade(hidden)
+		tween(menu, { BackgroundTransparency = hidden and 1 or 0 }, T)
+		tween(shadow, { ImageTransparency = hidden and 1 or 0.55 }, T)
+		for _, ob in ipairs(opts) do tween(ob, { TextTransparency = hidden and 1 or 0 }, T) end
+	end
+	local function close()
+		if not isOpen then return end
+		isOpen = false
+		if followConn then followConn:Disconnect(); followConn = nil end
+		fade(true)
+		tween(scl, { Scale = 0.96 }, T); tween(arrow, { Rotation = 0 }, T); tween(btn, { BackgroundTransparency = 0.9 }, T)
+		task.delay(0.2, function() if not isOpen then menu.Visible = false; shadow.Visible = false end end)
+	end
+
 	for i, opt in ipairs(cfg.Options or {}) do
 		local ob = new("TextButton", { Parent = menu, LayoutOrder = i, AutoButtonColor = false, ZIndex = 61,
 			BackgroundColor3 = INK, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 30),
-			Text = string.upper(opt), TextColor3 = INK, FontFace = bodyFont(), TextSize = 12 })
-		ob.MouseEnter:Connect(function() ob.BackgroundTransparency = 0.85 end)
-		ob.MouseLeave:Connect(function() ob.BackgroundTransparency = 1 end)
+			Text = string.upper(opt), TextColor3 = INK, TextTransparency = 1, FontFace = bodyFont(), TextSize = 12 })
+		opts[#opts + 1] = ob
+		ob.MouseEnter:Connect(function() if isOpen then tween(ob, { BackgroundTransparency = 0.85 }) end end)
+		ob.MouseLeave:Connect(function() tween(ob, { BackgroundTransparency = 1 }) end)
 		ob.MouseButton1Click:Connect(function()
 			value = opt; vlbl.Text = string.upper(opt); close()
 			if cfg.Callback then task.spawn(cfg.Callback, opt) end
 		end)
 	end
+
+	local function open()
+		isOpen = true
+		scl.Scale = 0.96
+		menu.Visible = true; shadow.Visible = true
+		positionAt(); task.defer(positionAt)
+		fade(false)
+		tween(scl, { Scale = 1 }, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+		tween(arrow, { Rotation = 180 }, T); tween(btn, { BackgroundTransparency = 0.82 }, T)
+		followConn = RunService.RenderStepped:Connect(positionAt)   -- follow the panel while open
+		win._openDropdown = menu; win._closePopup = close
+	end
+
+	btn.MouseEnter:Connect(function() if not isOpen then tween(btn, { BackgroundTransparency = 0.82 }) end end)
+	btn.MouseLeave:Connect(function() if not isOpen then tween(btn, { BackgroundTransparency = 0.9 }) end end)
 	btn.MouseButton1Click:Connect(function()
-		if win._openDropdown and win._openDropdown ~= menu then win._openDropdown.Visible = false end
-		if menu.Visible then close(); return end
-		local ap = btn.AbsolutePosition
-		menu.Position = UDim2.fromOffset(ap.X, ap.Y + btn.AbsoluteSize.Y + 4)
-		menu.Size = UDim2.fromOffset(btn.AbsoluteSize.X, 0)
-		menu.Visible = true; win._openDropdown = menu
+		if win._closePopup and win._openDropdown ~= menu then win._closePopup(); win._openDropdown = nil; win._closePopup = nil end
+		if isOpen then close() else open() end
 	end)
+
 	local api = { Set = function(_, v) value = v; vlbl.Text = string.upper(v) end, Get = function() return value end }
 	bindFlag(win, cfg, function() return value end, function(v) api:Set(v) end)
 	return api
