@@ -38,13 +38,40 @@ See `example.lua` for a full reproduction of the design (all 5 tabs, every contr
 
 ## Config keys
 
-- **Window**: `Title`, `SubTitle`, `Build`, `ToggleKey`
-- **Element** (common): `Title`, `Desc`, `Badge` (`"SIGNATURE"` / `"SPICY"` filled, anything else outlined), `Feature` (boxed label), `Default`, `Callback`
+- **Window**:
+  - `Title` (text), `TitleSize`, `Icon` (rbxassetid logo before the title), `IconSize`, `IconCorner`
+  - `SubTitle`, `Avatar` (rbxassetid image slot) or `AvatarText` (letter, default "W")
+  - `Footer` (left text), `FooterRight` (optional right text — omitted by default)
+  - `ToggleKey`, `ConfigName` (enables auto-save under `NEON_<name>.json`)
+- **Element** (common): `Title`, `Desc`, `Badge` (`"SIGNATURE"` / `"SPICY"` filled, anything else outlined), `Feature` (boxed label), `Default`, `Callback`, `Flag` (config key override — defaults to `Title`)
 - **Slider**: `Min`, `Max`, `Step`, `Unit`
 - **Dropdown / Segmented**: `Options` (array)
-- **Colorpicker**: `Swatches` (array of hex), `Default` (hex)
+- **Colorpicker**: `Default` (hex) — full HSV picker (SV square + hue bar)
 
 Most elements return `{ Set, Get }`.
+
+## Runtime customisation
+
+```lua
+Window:SetTitle("NEW NAME")
+Window:SetSubTitle("logged in as X")
+Window:SetFooter("v2")
+Window:SetIcon("rbxassetid://123")
+Window:SetAvatarImage("rbxassetid://123")
+```
+
+## Config save/load
+
+Pass `ConfigName` to the window and it auto-saves every change. Load it back after building your tabs:
+
+```lua
+local Window = NEON:CreateWindow({ Title = "MODKIT", ConfigName = "myscript" })
+-- ... create all tabs + elements ...
+Window:LoadConfig()   -- restore saved values on startup
+-- Window:SaveConfig() also available for a manual save
+```
+
+Values persist to `NEON_myscript.json` on the executor's filesystem. Each element is keyed by its `Title` (or `Flag`).
 
 ## Features
 
