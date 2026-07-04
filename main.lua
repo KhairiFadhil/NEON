@@ -494,7 +494,10 @@ function NEON:CreateWindow(cfg)
 	win._key = cfg.ToggleKey or Enum.KeyCode.F4
 	UserInputService.InputBegan:Connect(function(i, gpe)
 		if gpe then return end
-		if i.KeyCode == win._key then panel.Visible = not panel.Visible end
+		if i.KeyCode == win._key then
+			panel.Visible = not panel.Visible
+			if not panel.Visible and win._closePopup then win._closePopup(); win._openDropdown = nil; win._closePopup = nil end
+		end
 	end)
 
 	-- initial state (Minimized = true starts collapsed) + slide-down entry with ease-out --------
@@ -530,6 +533,7 @@ end
 
 function NEON:_toggleMin()
 	local panel, body = self._panel, self._body
+	if self._closePopup then self._closePopup(); self._openDropdown = nil; self._closePopup = nil end
 	self._min = not self._min
 	local DUR = 0.34
 	local EASE = TweenInfo.new(DUR, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
