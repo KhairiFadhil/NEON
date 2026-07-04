@@ -293,7 +293,13 @@ function NEON:CreateWindow(cfg)
 		-- footer-gap bug), then keep the list height matched to the active tab's content.
 		if not win._min and not win._accordion then
 			local b = win._body
-			if b and b.AutomaticSize ~= Enum.AutomaticSize.Y then b.AutomaticSize = Enum.AutomaticSize.Y; b.ClipsDescendants = false end
+			-- AutomaticSize treats Size.Offset as a MINIMUM, so the accordion's leftover fixed
+			-- height pins the body tall. Clear it so the body shrinks to its content.
+			if b and (b.AutomaticSize ~= Enum.AutomaticSize.Y or b.Size.Y.Offset ~= 0) then
+				b.AutomaticSize = Enum.AutomaticSize.Y
+				b.Size = UDim2.new(1, 0, 0, 0)
+				b.ClipsDescendants = false
+			end
 			if win._fitScroll then win._fitScroll() end
 		end
 	end)
@@ -573,7 +579,7 @@ function NEON:_toggleMin()
 		tween(body, { Size = UDim2.new(1, 0, 0, targetH) }, EASE)  -- accordion open
 		tween(panel, { Size = UDim2.new(0, 772, 0, 0), Position = self._restorePos }, EASE)
 		task.delay(DUR, function()
-			if not self._min then body.AutomaticSize = Enum.AutomaticSize.Y; body.ClipsDescendants = false end
+			if not self._min then body.AutomaticSize = Enum.AutomaticSize.Y; body.Size = UDim2.new(1, 0, 0, 0); body.ClipsDescendants = false end
 			self._accordion = false
 		end)
 	end
