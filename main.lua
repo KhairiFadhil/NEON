@@ -288,9 +288,14 @@ function NEON:CreateWindow(cfg)
 		moveH.Visible = show; resizeH.Visible = show
 		moveH.Position = UDim2.fromOffset(px + s.X / 2, py + s.Y - 7)
 		resizeH.Position = UDim2.fromOffset(px + s.X, py + s.Y)
-		-- keep the list height matched to the active tab's content (the AbsoluteContentSize
-		-- signal can miss a tab switch, leaving a short tab stuck at the previous tall height).
-		if win._fitScroll and not win._min then win._fitScroll() end
+		-- when maximized and not mid-accordion: the body must auto-size so it shrinks with the
+		-- list. Force it back if an interrupted accordion left it fixed (the stuck-tall-height /
+		-- footer-gap bug), then keep the list height matched to the active tab's content.
+		if not win._min and not win._accordion then
+			local b = win._body
+			if b and b.AutomaticSize ~= Enum.AutomaticSize.Y then b.AutomaticSize = Enum.AutomaticSize.Y; b.ClipsDescendants = false end
+			if win._fitScroll then win._fitScroll() end
+		end
 	end)
 	gui.Destroying:Connect(function() uiConn:Disconnect() end)
 
@@ -534,6 +539,7 @@ end
 function NEON:_toggleMin()
 	local panel, body = self._panel, self._body
 	if self._closePopup then self._closePopup(); self._openDropdown = nil; self._closePopup = nil end
+	self._accordion = true   -- suppress the Heartbeat's body auto-size restore while animating
 	self._min = not self._min
 	local DUR = 0.34
 	local EASE = TweenInfo.new(DUR, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
@@ -550,7 +556,7 @@ function NEON:_toggleMin()
 		local dispW = w * self._scale.Scale   -- centred using the on-screen (scaled) width
 		tween(panel, { Size = UDim2.new(0, w, 0, 0),
 			Position = UDim2.fromOffset(math.floor((panel.Parent.AbsoluteSize.X - dispW) / 2), 20) }, EASE)
-		task.delay(DUR, function() if self._min then body.Visible = false end end)
+		task.delay(DUR, function() if self._min then body.Visible = false end; self._accordion = false end)
 	else
 		body.ClipsDescendants = true
 		local targetH = self._bodyH
@@ -568,6 +574,7 @@ function NEON:_toggleMin()
 		tween(panel, { Size = UDim2.new(0, 772, 0, 0), Position = self._restorePos }, EASE)
 		task.delay(DUR, function()
 			if not self._min then body.AutomaticSize = Enum.AutomaticSize.Y; body.ClipsDescendants = false end
+			self._accordion = false
 		end)
 	end
 end
