@@ -1104,17 +1104,28 @@ function NEON:CreateKeyPage(cfg)
 	end
 	local function spacer(parent, h, lo) return new("Frame", { Parent = parent, LayoutOrder = lo, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, h) }) end
 
-	local root = new("Frame", { Parent = gui, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560) })
-	do local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
-		new("UIScale", { Parent = root, Scale = math.min(1, (vp.X - 40) / 760, (vp.Y - 40) / 560) }) end
-	-- soft drop shadow (same 9-slice as the menu); no outline, 4px corners
+	-- CanvasGroup lets the whole card (+ shadow) fade at once for the show/hide animation
+	local root = new("CanvasGroup", { Parent = gui, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(960, 760), GroupTransparency = 1 })
+	local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
+	local fit = math.min(1, (vp.X - 40) / 760, (vp.Y - 40) / 560)
+	local uiscale = new("UIScale", { Parent = root, Scale = fit * 0.9 })
+	-- soft drop shadow — same 9-slice, margin (34/side) and intensity as the menu
 	new("ImageLabel", { Parent = root, BackgroundTransparency = 1, ZIndex = 0, Image = "rbxassetid://6014261993",
-		ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.72, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450),
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 90, 1, 90) })
-	local card = new("Frame", { Parent = root, BackgroundColor3 = DARK, ZIndex = 1, Size = UDim2.fromScale(1, 1), ClipsDescendants = true, Active = true })
+		ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.76, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450),
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760 + 68, 560 + 68) })
+	local card = new("Frame", { Parent = root, BackgroundColor3 = DARK, ZIndex = 1, AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560), ClipsDescendants = true, Active = true })
 	corner(card, 4)
 	hlist(card, 0)
+	-- show: pop + fade in.  exit(cb): shrink + fade out, then cb()
+	tween(uiscale, { Scale = fit }, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+	tween(root, { GroupTransparency = 0 }, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out))
+	local function exit(cb)
+		tween(uiscale, { Scale = fit * 0.92 }, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In))
+		tween(root, { GroupTransparency = 1 }, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In))
+		task.delay(0.24, function() if cb then cb() end end)
+	end
 
 	-- LEFT brand panel ------------------------------------------------------
 	local left = new("Frame", { Parent = card, LayoutOrder = 1, BackgroundColor3 = ACCENT, Size = UDim2.new(0, 290, 1, 0), ClipsDescendants = true })
@@ -1246,7 +1257,9 @@ function NEON:CreateKeyPage(cfg)
 			loading = false
 			if valid then
 				status = "ok"; refresh(); task.wait(0.45); overlay.Visible = true; task.wait(1.1)
-				if cfg.OnSuccess then task.spawn(cfg.OnSuccess) else if gui.Parent then gui:Destroy() end end
+				exit(function()
+					if cfg.OnSuccess then task.spawn(cfg.OnSuccess) elseif gui.Parent then gui:Destroy() end
+				end)
 			else
 				status = "bad"; refresh(); shake()
 			end
@@ -1278,7 +1291,7 @@ function NEON:CreateKeyPage(cfg)
 	gui.Destroying:Connect(function() if spinConn then spinConn:Disconnect() end end)
 
 	refresh()
-	return { Gui = gui, Destroy = function() gui:Destroy() end, Unlock = function() status = "ok"; refresh(); overlay.Visible = true end }
+	return { Gui = gui, Destroy = function() exit(function() gui:Destroy() end) end, Unlock = function() status = "ok"; refresh(); overlay.Visible = true end }
 end
 
 return setmetatable({}, { __index = NEON, __call = function(_, cfg) return NEON:CreateWindow(cfg) end })
