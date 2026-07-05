@@ -1087,4 +1087,186 @@ function NEON:Notify(text)
 	end)
 end
 
+-- Key / login page: brand panel + license-key form + success overlay.
+--   Callback(key) -> boolean   (validates the key; may block on an HttpGet)
+--   OnSuccess()                (runs once the key is accepted — build your menu here)
+function NEON:CreateKeyPage(cfg)
+	cfg = cfg or {}
+	local DARK, LIGHT = Color3.fromHex("0C0C0C"), Color3.fromHex("EDEDED")
+	local RED, GRN = Color3.fromHex("EAA8A8"), Color3.fromHex("A8EAB6")
+	local GREY = Color3.fromRGB(120, 120, 120)
+	local gui = mountRoot()
+
+	local hwid = cfg.HWID
+	if not hwid then
+		local ok, id = pcall(function() return (gethwid and gethwid()) or game:GetService("RbxAnalyticsService"):GetClientId() end)
+		hwid = tostring((ok and id) or "UNKNOWN-HWID")
+	end
+	local function spacer(parent, h, lo) return new("Frame", { Parent = parent, LayoutOrder = lo, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, h) }) end
+
+	new("Frame", { Parent = gui, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, Size = UDim2.fromScale(1, 1), Active = true })
+	local card = new("Frame", { Parent = gui, BackgroundColor3 = DARK, AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560), ClipsDescendants = true, Active = true })
+	corner(card, 16); stroke(card, 1, ACCENT, 0.84)
+	do local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
+		new("UIScale", { Parent = card, Scale = math.min(1, (vp.X - 40) / 760, (vp.Y - 40) / 560) }) end
+	hlist(card, 0)
+
+	-- LEFT brand panel ------------------------------------------------------
+	local left = new("Frame", { Parent = card, LayoutOrder = 1, BackgroundColor3 = ACCENT, Size = UDim2.new(0, 290, 1, 0), ClipsDescendants = true })
+	new("TextLabel", { Parent = left, BackgroundTransparency = 1, Text = "M", FontFace = displayFont(), TextSize = 230,
+		TextColor3 = INK, TextTransparency = 0.94, Rotation = 8, TextXAlignment = Enum.TextXAlignment.Right,
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 50, 0, -56), Size = UDim2.fromOffset(230, 210) })
+	local ltop = new("Frame", { Parent = left, BackgroundTransparency = 1, ZIndex = 2, AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(30, 34), Size = UDim2.new(1, -60, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	vlist(ltop, 0)
+	local logoRow = new("Frame", { Parent = ltop, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	hlist(logoRow, 11).VerticalAlignment = Enum.VerticalAlignment.Center
+	local lbox = new("TextLabel", { Parent = logoRow, LayoutOrder = 1, BackgroundColor3 = INK, Size = UDim2.fromOffset(34, 34),
+		Text = string.sub(cfg.Brand or "MODKIT", 1, 1), TextColor3 = ACCENT, FontFace = displayFont(), TextSize = 19 })
+	corner(lbox, 8)
+	local blab = label(logoRow, string.upper(cfg.Brand or "MODKIT"), 16, Enum.FontWeight.Heavy, INK); blab.LayoutOrder = 2
+	spacer(ltop, 34, 2)
+	new("TextLabel", { Parent = ltop, LayoutOrder = 3, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y,
+		Size = UDim2.new(1, 0, 0, 0), Text = string.upper(cfg.Title or "KEY\nSYSTEM"), FontFace = displayFont(), TextSize = 54,
+		TextColor3 = INK, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
+	spacer(ltop, 14, 4)
+	local sub = label(ltop, string.upper(cfg.Subtitle or "Authenticate your license to unlock the loader."), 11, Enum.FontWeight.Bold, INK)
+	sub.LayoutOrder = 5; sub.Size = UDim2.new(1, 0, 0, 0); sub.AutomaticSize = Enum.AutomaticSize.Y; sub.TextWrapped = true; sub.TextTransparency = 0.4
+	local lbot = new("Frame", { Parent = left, BackgroundTransparency = 1, ZIndex = 2, AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 30, 1, -34), Size = UDim2.new(1, -60, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	vlist(lbot, 10)
+	new("Frame", { Parent = lbot, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
+	local statusRow = new("Frame", { Parent = lbot, LayoutOrder = 2, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 14) })
+	local srL = new("Frame", { Parent = statusRow, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 0, 0.5, 0), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
+	hlist(srL, 7).VerticalAlignment = Enum.VerticalAlignment.Center
+	local sdot = new("Frame", { Parent = srL, LayoutOrder = 1, BackgroundColor3 = INK, BorderSizePixel = 0, Size = UDim2.fromOffset(7, 7) }); corner(sdot, 999)
+	tween(sdot, { BackgroundTransparency = 0.7 }, TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true))
+	local sol = label(srL, "SERVERS ONLINE", 10, Enum.FontWeight.Bold, INK); sol.LayoutOrder = 2
+	local ver = label(statusRow, cfg.Build or "v2.4.1", 10, Enum.FontWeight.ExtraBold, INK); ver.AnchorPoint = Vector2.new(1, 0.5); ver.Position = UDim2.new(1, 0, 0.5, 0)
+
+	-- RIGHT form panel ------------------------------------------------------
+	local form = new("Frame", { Parent = card, LayoutOrder = 2, BackgroundTransparency = 1, Size = UDim2.new(1, -290, 1, 0) })
+	pad(form, 38, 40, 38, 40)
+	local fcol = new("Frame", { Parent = form, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	vlist(fcol, 0)
+	local step = label(fcol, "STEP 01 — AUTHENTICATION", 10, Enum.FontWeight.Bold, ACCENT); step.LayoutOrder = 1; step.TextTransparency = 0.3
+	spacer(fcol, 8, 2)
+	new("TextLabel", { Parent = fcol, LayoutOrder = 3, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), Text = string.upper(cfg.Heading or "ENTER LICENSE KEY"), FontFace = displayFont(), TextSize = 36, TextColor3 = LIGHT, TextXAlignment = Enum.TextXAlignment.Left })
+	spacer(fcol, 7, 4)
+	local note = label(fcol, string.upper(cfg.Note or "Paste the key bound to your HWID below"), 12, Enum.FontWeight.SemiBold, LIGHT); note.LayoutOrder = 5; note.TextTransparency = 0.55
+	spacer(fcol, 24, 6)
+
+	local inputArea = new("Frame", { Parent = fcol, LayoutOrder = 7, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 74) })
+	local inputBox = new("Frame", { Parent = inputArea, BackgroundColor3 = INK, Size = UDim2.new(1, 0, 0, 50) })
+	corner(inputBox, 8); local inStroke = stroke(inputBox, 1.5, ACCENT, 0.65)
+	hlist(inputBox, 0).VerticalAlignment = Enum.VerticalAlignment.Center
+	local prefix = new("TextLabel", { Parent = inputBox, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(46, 50), Text = "⌘", TextColor3 = ACCENT, FontFace = bodyFont(Enum.FontWeight.ExtraBold), TextSize = 15 })
+	new("Frame", { Parent = prefix, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(1, 0, 0, 0) })
+	local box = new("TextBox", { Parent = inputBox, LayoutOrder = 2, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Text = "", PlaceholderText = "MODKIT-XXXX-XXXX-XXXX", PlaceholderColor3 = GREY, TextColor3 = LIGHT, ClearTextOnFocus = false, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left })
+	new("UIPadding", { Parent = box, PaddingLeft = UDim.new(0, 14) }); new("UIFlexItem", { Parent = box, FlexMode = Enum.UIFlexMode.Fill })
+	local pasteBtn = new("TextButton", { Parent = inputBox, LayoutOrder = 3, BackgroundTransparency = 1, AutoButtonColor = false, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 1, 0), Text = "PASTE", TextColor3 = ACCENT, TextTransparency = 0.3, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 10 })
+	pad(pasteBtn, 0, 15, 0, 15)
+	new("Frame", { Parent = pasteBtn, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(0, 0, 0, 0) })
+	local msgRow = new("Frame", { Parent = inputArea, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 58), Size = UDim2.new(1, 0, 0, 16) })
+	hlist(msgRow, 7).VerticalAlignment = Enum.VerticalAlignment.Center
+	local msgDot = new("Frame", { Parent = msgRow, LayoutOrder = 1, BackgroundColor3 = ACCENT, BorderSizePixel = 0, Size = UDim2.fromOffset(6, 6), Visible = false }); corner(msgDot, 999)
+	local msgLbl = label(msgRow, "", 11, Enum.FontWeight.Bold, ACCENT); msgLbl.LayoutOrder = 2; msgLbl.Visible = false
+
+	spacer(fcol, 10, 8)
+	local authBtn = new("TextButton", { Parent = fcol, LayoutOrder = 9, AutoButtonColor = false, BackgroundColor3 = ACCENT, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 50), Text = "" })
+	corner(authBtn, 8); stroke(authBtn, 1.5, ACCENT)
+	local authWrap = new("Frame", { Parent = authBtn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
+	hlist(authWrap, 11).VerticalAlignment = Enum.VerticalAlignment.Center
+	local spin = new("Frame", { Parent = authWrap, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(15, 15), Visible = false })
+	local hand = new("Frame", { Parent = spin, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.5, 0), Size = UDim2.fromOffset(2.5, 7), BackgroundColor3 = ACCENT }); corner(hand, 999)
+	local authLbl = label(authWrap, "AUTHENTICATE", 14, Enum.FontWeight.ExtraBold, ACCENT); authLbl.LayoutOrder = 2
+
+	spacer(fcol, 22, 10)
+	local linkRow = new("Frame", { Parent = fcol, LayoutOrder = 11, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40) })
+	hlist(linkRow, 10)
+	local getBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 1, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "GET A KEY →", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
+	new("UIFlexItem", { Parent = getBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(getBtn, 7); stroke(getBtn, 1, ACCENT, 0.72)
+	local hwidBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 2, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "COPY HWID", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
+	new("UIFlexItem", { Parent = hwidBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(hwidBtn, 7); stroke(hwidBtn, 1, ACCENT, 0.72)
+
+	spacer(fcol, 16, 12)
+	local metaRow = new("Frame", { Parent = fcol, LayoutOrder = 13, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 28) })
+	new("Frame", { Parent = metaRow, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.9, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.fromScale(0, 0) })
+	local metaL = label(metaRow, "HWID · " .. string.upper(string.sub(tostring(hwid), 1, 22)), 9.5, Enum.FontWeight.SemiBold, LIGHT); metaL.AnchorPoint = Vector2.new(0, 1); metaL.Position = UDim2.new(0, 0, 1, 0); metaL.TextTransparency = 0.7
+	local metaR = label(metaRow, "DISCORD · " .. string.upper(cfg.Discord or "gg/modkit"), 9.5, Enum.FontWeight.Bold, LIGHT); metaR.AnchorPoint = Vector2.new(1, 1); metaR.Position = UDim2.new(1, 0, 1, 0); metaR.TextTransparency = 0.7
+
+	-- SUCCESS overlay -------------------------------------------------------
+	local overlay = new("Frame", { Parent = card, BackgroundColor3 = ACCENT, Size = UDim2.fromScale(1, 1), ZIndex = 5, Visible = false, Active = true })
+	local ocol = new("Frame", { Parent = overlay, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 440, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 6 })
+	local ov = vlist(ocol, 16); ov.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local check = new("TextLabel", { Parent = ocol, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(72, 72), Text = "✓", TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.ExtraBold), TextSize = 34, ZIndex = 6 }); corner(check, 999); stroke(check, 2.5, INK)
+	new("TextLabel", { Parent = ocol, LayoutOrder = 2, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), Text = "ACCESS\nGRANTED", FontFace = displayFont(), TextSize = 46, TextColor3 = INK, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 6 })
+	local launch = label(ocol, "LAUNCHING LOADER…", 11, Enum.FontWeight.Bold, INK); launch.LayoutOrder = 3; launch.TextTransparency = 0.4; launch.TextXAlignment = Enum.TextXAlignment.Center; launch.Size = UDim2.new(1, 0, 0, 0); launch.AutomaticSize = Enum.AutomaticSize.Y; launch.ZIndex = 6
+
+	-- logic -----------------------------------------------------------------
+	local status, loading = "idle", false
+	local function refresh()
+		local erry = status == "bad" or status == "empty"
+		local bc = erry and RED or (status == "ok" and GRN or ACCENT)
+		tween(inStroke, { Color = bc, Transparency = (erry or status == "ok") and 0 or 0.65 })
+		local show = status ~= "idle"
+		msgDot.Visible = show; msgLbl.Visible = show
+		local map = { empty = "KEY FIELD IS EMPTY", bad = "INVALID OR EXPIRED KEY", checking = "VERIFYING WITH SERVER…", ok = "KEY ACCEPTED" }
+		msgLbl.Text = map[status] or ""; msgLbl.TextColor3 = bc; msgDot.BackgroundColor3 = bc
+		spin.Visible = loading; hand.BackgroundColor3 = (status == "ok") and INK or ACCENT
+		authLbl.Text = loading and "AUTHENTICATING" or (status == "ok" and "UNLOCKED ✓" or "AUTHENTICATE")
+		authLbl.TextColor3 = (status == "ok") and INK or ACCENT
+		authBtn.BackgroundTransparency = (status == "ok") and 0 or (loading and 0.86 or 1)
+	end
+	local function shake() for i, dx in ipairs({ 7, -7, 5, -5, 3, -3, 0 }) do task.delay((i - 1) * 0.045, function() inputBox.Position = UDim2.fromOffset(dx, 0) end) end end
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		local up = string.upper(box.Text)
+		if box.Text ~= up then box.Text = up; return end
+		if status == "bad" or status == "empty" then status = "idle"; refresh() end
+	end)
+	local function submit()
+		if loading then return end
+		local key = string.gsub(string.upper(box.Text), "%s", "")
+		if key == "" then status = "empty"; refresh(); shake(); return end
+		loading = true; status = "checking"; refresh()
+		task.spawn(function()
+			local valid = false
+			if cfg.Callback then local s, r = pcall(cfg.Callback, key); valid = s and r and true or false else valid = (key == "DEMO") end
+			loading = false
+			if valid then
+				status = "ok"; refresh(); task.wait(0.45); overlay.Visible = true; task.wait(1.1)
+				if cfg.OnSuccess then task.spawn(cfg.OnSuccess) else if gui.Parent then gui:Destroy() end end
+			else
+				status = "bad"; refresh(); shake()
+			end
+		end)
+	end
+	authBtn.MouseButton1Click:Connect(submit)
+	box.FocusLost:Connect(function(enter) if enter then submit() end end)
+	pasteBtn.MouseButton1Click:Connect(function()
+		local ok, t = pcall(function() return getclipboard and getclipboard() end)
+		box.Text = (ok and t and t ~= "" and string.upper(t)) or "MODKIT-7F3A-9K2P-XR41"
+		status = "idle"; refresh()
+	end)
+	getBtn.MouseButton1Click:Connect(function()
+		local url = cfg.GetKeyUrl or "https://discord.gg"
+		pcall(function() if setclipboard then setclipboard(url) end end)
+		pcall(function() game:GetService("GuiService"):OpenBrowserWindow(url) end)
+	end)
+	hwidBtn.MouseButton1Click:Connect(function()
+		pcall(function() if setclipboard then setclipboard(tostring(hwid)) end end)
+		hwidBtn.Text = "COPIED ✓"; task.delay(1.4, function() if hwidBtn.Parent then hwidBtn.Text = "COPY HWID" end end)
+	end)
+	local spinConn
+	spinConn = RunService.RenderStepped:Connect(function()
+		if not gui.Parent then spinConn:Disconnect(); return end
+		if spin.Visible then spin.Rotation = (spin.Rotation + 9) % 360 end
+	end)
+	gui.Destroying:Connect(function() if spinConn then spinConn:Disconnect() end end)
+
+	refresh()
+	return { Gui = gui, Destroy = function() gui:Destroy() end, Unlock = function() status = "ok"; refresh(); overlay.Visible = true end }
+end
+
 return setmetatable({}, { __index = NEON, __call = function(_, cfg) return NEON:CreateWindow(cfg) end })
