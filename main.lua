@@ -888,6 +888,33 @@ function Tab:Segmented(cfg)
 	return api
 end
 
+-- floating tooltip shown while hovering `target`; getText() returns the text (nil/"" = no tip).
+-- Parented to the ScreenGui (not clipped), positioned just above the target, follows the panel.
+local function tooltip(win, target, getText)
+	local tip = new("Frame", { Parent = win._gui, Visible = false, ZIndex = 300, BackgroundColor3 = INK,
+		BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.XY, AnchorPoint = Vector2.new(0.5, 1) })
+	corner(tip, 4); pad(tip, 6, 9, 6, 9)
+	new("TextLabel", { Parent = tip, Name = "T", BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.XY,
+		Text = "", TextColor3 = ACCENT, FontFace = bodyFont(Enum.FontWeight.SemiBold), TextSize = 11 })
+	local conn
+	local function place()
+		if not (win._panel and target.Parent) then return end
+		local p = win._panel
+		tip.Position = UDim2.fromOffset(
+			p.Position.X.Offset + (target.AbsolutePosition.X - p.AbsolutePosition.X) + target.AbsoluteSize.X / 2,
+			p.Position.Y.Offset + (target.AbsolutePosition.Y - p.AbsolutePosition.Y) - 6)
+	end
+	target.MouseEnter:Connect(function()
+		local t = getText and getText()
+		if not t or t == "" then return end
+		tip.T.Text = t; tip.Visible = true; place(); task.defer(place)
+		if conn then conn:Disconnect() end
+		conn = RunService.RenderStepped:Connect(place)
+	end)
+	target.MouseLeave:Connect(function() tip.Visible = false; if conn then conn:Disconnect(); conn = nil end end)
+	win._gui.Destroying:Connect(function() if conn then conn:Disconnect() end end)
+end
+
 function Tab:Dropdown(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
@@ -905,6 +932,15 @@ function Tab:Dropdown(cfg)
 	local arrow = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -13, 0.5, 0), Size = UDim2.fromOffset(12, 12), Text = "▼", TextColor3 = INK,
 		FontFace = bodyFont(), TextSize = 10 })
+
+	-- disabled: preview stays visible but dimmed, can't be opened; hover shows cfg.Tooltip
+	local disabled = cfg.Disabled or false
+	local function applyDisabled()
+		vlbl.TextTransparency = disabled and 0.55 or 0
+		arrow.TextTransparency = disabled and 0.6 or 0
+		btn.BackgroundTransparency = disabled and 0.94 or 0.9
+	end
+	tooltip(win, btn, function() return cfg.Tooltip end)
 
 	-- soft shadow behind the popup (no outline anywhere)
 	local shadow = new("ImageLabel", { Parent = win._gui, Visible = false, ZIndex = 59, BackgroundTransparency = 1,
@@ -979,14 +1015,17 @@ function Tab:Dropdown(cfg)
 		win._openDropdown = menu; win._closePopup = close
 	end
 
-	btn.MouseEnter:Connect(function() if not isOpen then tween(btn, { BackgroundTransparency = 0.82 }) end end)
-	btn.MouseLeave:Connect(function() if not isOpen then tween(btn, { BackgroundTransparency = 0.9 }) end end)
+	btn.MouseEnter:Connect(function() if not isOpen and not disabled then tween(btn, { BackgroundTransparency = 0.82 }) end end)
+	btn.MouseLeave:Connect(function() if not isOpen and not disabled then tween(btn, { BackgroundTransparency = 0.9 }) end end)
 	btn.MouseButton1Click:Connect(function()
+		if disabled then return end
 		if win._closePopup and win._openDropdown ~= menu then win._closePopup(); win._openDropdown = nil; win._closePopup = nil end
 		if isOpen then close() else open() end
 	end)
+	applyDisabled()
 
-	local api = { Set = function(_, v) value = v; vlbl.Text = string.upper(v) end, Get = function() return value end }
+	local api = { Set = function(_, v) value = v; vlbl.Text = string.upper(v) end, Get = function() return value end,
+		SetDisabled = function(_, v) disabled = v and true or false; if disabled and isOpen then close() end; applyDisabled() end }
 	bindFlag(win, cfg, function() return value end, function(v) api:Set(v) end)
 	return api
 end
