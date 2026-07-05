@@ -1117,7 +1117,10 @@ function NEON:CreateKeyPage(cfg)
 	local card = new("Frame", { Parent = root, BackgroundColor3 = DARK, ZIndex = 1, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560), ClipsDescendants = true, Active = true })
 	corner(card, 4)
-	hlist(card, 0)
+	-- panels live in their own row; close button + overlay sit OUTSIDE this layout so they
+	-- don't get counted as list items (which shifted the whole card right)
+	local row = new("Frame", { Parent = card, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1) })
+	hlist(row, 0)
 	-- show: pop + fade in.  exit(cb): shrink + fade out, then cb()
 	tween(uiscale, { Scale = fit }, TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
 	tween(root, { GroupTransparency = 0 }, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out))
@@ -1128,7 +1131,7 @@ function NEON:CreateKeyPage(cfg)
 	end
 
 	-- LEFT brand panel ------------------------------------------------------
-	local left = new("Frame", { Parent = card, LayoutOrder = 1, BackgroundColor3 = ACCENT, Size = UDim2.new(0, 290, 1, 0), ClipsDescendants = true })
+	local left = new("Frame", { Parent = row, LayoutOrder = 1, BackgroundColor3 = ACCENT, Size = UDim2.new(0, 290, 1, 0), ClipsDescendants = true })
 	local ltop = new("Frame", { Parent = left, BackgroundTransparency = 1, ZIndex = 2, AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(30, 34), Size = UDim2.new(1, -60, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	vlist(ltop, 0)
@@ -1158,7 +1161,7 @@ function NEON:CreateKeyPage(cfg)
 	local ver = label(statusRow, cfg.Build or "v2.4.1", 10, Enum.FontWeight.ExtraBold, INK); ver.AnchorPoint = Vector2.new(1, 0.5); ver.Position = UDim2.new(1, 0, 0.5, 0)
 
 	-- RIGHT form panel ------------------------------------------------------
-	local form = new("Frame", { Parent = card, LayoutOrder = 2, BackgroundTransparency = 1, Size = UDim2.new(1, -290, 1, 0) })
+	local form = new("Frame", { Parent = row, LayoutOrder = 2, BackgroundTransparency = 1, Size = UDim2.new(1, -290, 1, 0) })
 	pad(form, 38, 40, 38, 40)
 	local fcol = new("Frame", { Parent = form, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	vlist(fcol, 0)
