@@ -163,7 +163,8 @@ Tab:Section("Combat")   -- or Tab:Section({ Title = "Combat" })
 
 ## Key / login page
 
-A standalone license-key screen (brand panel + key form + animated success overlay). Show it
+A standalone license-key screen (cyan brand panel + dark key form). Same look as the menu —
+4px corners, soft drop shadow, no outline. Draggable, closeable, pops in / fades out. Show it
 first; build your menu inside `OnSuccess`.
 
 ```lua
@@ -173,25 +174,34 @@ NEON:CreateKeyPage({
     Subtitle   = "Authenticate your license to unlock the loader.",
     Heading    = "ENTER LICENSE KEY",      -- right-panel heading
     Note       = "Paste the key bound to your HWID below",
-    Build      = "v2.4.1",
+    Build      = "v2.4.1",                 -- version shown bottom-left
+
     HWID       = nil,                      -- auto (gethwid / RbxAnalyticsService) if omitted
-    GetKeyUrl  = "https://discord.gg/...", -- "Get a Key" copies this / opens browser
-    Discord    = "gg/modkit",
+    ShowHWID   = true,                     -- false hides the "Copy HWID" button
+    GetKeyUrl  = "https://discord.gg/x",   -- "Get a Key" opens this (copies as fallback)
+    Discord    = "gg/modkit",              -- footer label; click opens the invite
+    DiscordUrl = nil,                      -- override the Discord link (else https://discord.gg/<code>)
+
     Callback   = function(key)             -- validate the key; may block on an HttpGet
         return game:HttpGet("https://api.mykeys.com/check?k="..key) == "valid"
         -- or: return key == "DEMO"
     end,
-    OnSuccess  = function()                -- runs after "Access Granted"
+    OnSuccess  = function()                -- runs once the key is accepted — build your menu here
         local Window = NEON:CreateWindow({ Title = "MODKIT" })
         -- ... build tabs ...
     end,
+    OnClose    = function() end,           -- optional: user hit the ✕
 })
 ```
 
-Behaviour: type/paste a key → **Authenticate** (or press Enter) → spinner while `Callback` runs
-→ green "Key accepted" + success overlay → `OnSuccess`. Invalid keys shake with a red error.
-Buttons: **Paste** (reads clipboard), **Get a Key**, **Copy HWID**. Returns
-`{ Gui, Destroy(), Unlock() }`.
+Behaviour: type/paste a key → **Authenticate** (or press Enter) → ring spinner while `Callback`
+runs → on success the page fades straight out into your menu (`OnSuccess`). Invalid keys shake
+with a red error. Drag it by the **cyan panel**; close with the **✕** (top-right). Buttons:
+**Paste** (reads clipboard), **Get a Key**, **Copy HWID**. Auto-fits small screens.
+Returns `{ Gui, Destroy(), Unlock() }` (`Destroy` plays the fade-out; `Unlock` accepts
+programmatically).
+
+> Run the full login → menu flow: `login-demo.lua` in the repo (key: `DEMO`).
 
 ---
 

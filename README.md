@@ -36,6 +36,22 @@ Window:Notify("God Mode — Executed")
 
 See `example.lua` for a full reproduction of the design (all 5 tabs, every control).
 
+## Key / login page
+
+Optional license-key screen shown before the menu (same style: 4px corners, drop shadow,
+draggable, closeable). Build your menu in `OnSuccess`:
+
+```lua
+NEON:CreateKeyPage({
+    Callback  = function(key) return key == "DEMO" end,  -- return true/false (may HttpGet)
+    OnSuccess = function() NEON:CreateWindow({ Title = "MODKIT" }) end,
+})
+```
+
+Config: `Brand`, `Title`, `Subtitle`, `Heading`, `Note`, `Build`, `HWID`, `ShowHWID`,
+`GetKeyUrl`, `Discord`/`DiscordUrl`, `Callback`, `OnSuccess`, `OnClose`. Full flow demo:
+`login-demo.lua` (key: `DEMO`). See `DOCS.md`.
+
 ## Config keys
 
 - **Window**:
