@@ -1189,8 +1189,11 @@ function NEON:CreateKeyPage(cfg)
 	corner(authBtn, 8); stroke(authBtn, 1.5, ACCENT)
 	local authWrap = new("Frame", { Parent = authBtn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
 	hlist(authWrap, 11).VerticalAlignment = Enum.VerticalAlignment.Center
-	local spin = new("Frame", { Parent = authWrap, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(15, 15), Visible = false })
-	local hand = new("Frame", { Parent = spin, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0.5, 0), Size = UDim2.fromOffset(2.5, 7), BackgroundColor3 = ACCENT }); corner(hand, 999)
+	local spin = new("Frame", { Parent = authWrap, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(16, 16), Visible = false })
+	local ring = new("Frame", { Parent = spin, ZIndex = 1, BackgroundColor3 = ACCENT, Size = UDim2.fromScale(1, 1) }); corner(ring, 999)
+	new("UIGradient", { Parent = ring, Rotation = 45,
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 0.9) }) })  -- comet fade
+	local hole = new("Frame", { Parent = spin, ZIndex = 2, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(9, 9), BackgroundColor3 = DARK, BorderSizePixel = 0 }); corner(hole, 999)
 	local authLbl = label(authWrap, "AUTHENTICATE", 14, Enum.FontWeight.ExtraBold, ACCENT); authLbl.LayoutOrder = 2
 
 	spacer(fcol, 22, 10)
@@ -1225,6 +1228,31 @@ function NEON:CreateKeyPage(cfg)
 	new("TextLabel", { Parent = ocol, LayoutOrder = 2, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), Text = "ACCESS\nGRANTED", FontFace = displayFont(), TextSize = 46, TextColor3 = INK, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 6 })
 	local launch = label(ocol, "LAUNCHING LOADER…", 11, Enum.FontWeight.Bold, INK); launch.LayoutOrder = 3; launch.TextTransparency = 0.4; launch.TextXAlignment = Enum.TextXAlignment.Center; launch.Size = UDim2.new(1, 0, 0, 0); launch.AutomaticSize = Enum.AutomaticSize.Y; launch.ZIndex = 6
 
+	-- close button (top-right) + drag the page by the brand panel (holder) -----
+	local closeBtn = new("TextButton", { Parent = card, ZIndex = 20, AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -14, 0, 14), Size = UDim2.fromOffset(26, 26), BackgroundColor3 = INK, BackgroundTransparency = 0.55,
+		Text = "✕", TextColor3 = LIGHT, TextSize = 13, FontFace = bodyFont(Enum.FontWeight.Bold) })
+	corner(closeBtn, 6)
+	closeBtn.MouseEnter:Connect(function() tween(closeBtn, { BackgroundTransparency = 0.25 }) end)
+	closeBtn.MouseLeave:Connect(function() tween(closeBtn, { BackgroundTransparency = 0.55 }) end)
+	closeBtn.MouseButton1Click:Connect(function() exit(function() if gui.Parent then gui:Destroy() end; if cfg.OnClose then task.spawn(cfg.OnClose) end end) end)
+	do
+		local dragging, startIn, startPos
+		left.Active = true
+		left.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+				dragging = true; startIn = i.Position; startPos = root.Position
+				i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dragging = false end end)
+			end
+		end)
+		UserInputService.InputChanged:Connect(function(i)
+			if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+				local d = i.Position - startIn
+				root.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+			end
+		end)
+	end
+
 	-- logic -----------------------------------------------------------------
 	local status, loading = "idle", false
 	local function refresh()
@@ -1235,7 +1263,7 @@ function NEON:CreateKeyPage(cfg)
 		msgDot.Visible = show; msgLbl.Visible = show
 		local map = { empty = "KEY FIELD IS EMPTY", bad = "INVALID OR EXPIRED KEY", checking = "VERIFYING WITH SERVER…", ok = "KEY ACCEPTED" }
 		msgLbl.Text = map[status] or ""; msgLbl.TextColor3 = bc; msgDot.BackgroundColor3 = bc
-		spin.Visible = loading; hand.BackgroundColor3 = (status == "ok") and INK or ACCENT
+		spin.Visible = loading
 		authLbl.Text = loading and "AUTHENTICATING" or (status == "ok" and "UNLOCKED ✓" or "AUTHENTICATE")
 		authLbl.TextColor3 = (status == "ok") and INK or ACCENT
 		authBtn.BackgroundTransparency = (status == "ok") and 0 or (loading and 0.86 or 1)
