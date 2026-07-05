@@ -3,6 +3,10 @@
 A single-file WindUI-style mod-menu UI library for Roblox exploit executors.
 Style: cyan `#A8D8EA` / ink `#0A0A0A` (MODKIT / NEON), Anton display + Montserrat body.
 
+**Contents:** [Loading](#loading) · [Window](#window) · [Tabs](#tabs) · [Elements](#elements)
+(Toggle · Checkbox · Slider · Input · Keybind · Dropdown · Segmented · Colorpicker · Button · Section)
+· [Key / login page](#key--login-page) · [Config save/load](#config-saveload) · [Full example](#full-example)
+
 ---
 
 ## Loading
@@ -44,9 +48,6 @@ local Window = NEON:CreateWindow({
 
 > On first appearance the panel slides down into place with an ease-out. Set `Minimized = true`
 > to start collapsed; the hamburger toggles minimize/maximize afterwards.
-
-```lua
-```
 
 ### Window methods
 
