@@ -1171,7 +1171,7 @@ function NEON:CreateKeyPage(cfg)
 
 	local inputArea = new("Frame", { Parent = fcol, LayoutOrder = 7, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 74) })
 	local inputBox = new("Frame", { Parent = inputArea, BackgroundColor3 = INK, Size = UDim2.new(1, 0, 0, 50) })
-	corner(inputBox, 8); local inStroke = stroke(inputBox, 1.5, ACCENT, 0.65)
+	corner(inputBox, 4); local inStroke = stroke(inputBox, 1.5, ACCENT, 0.65)
 	hlist(inputBox, 0).VerticalAlignment = Enum.VerticalAlignment.Center
 	local prefix = new("TextLabel", { Parent = inputBox, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(46, 50), Text = "⌘", TextColor3 = ACCENT, FontFace = bodyFont(Enum.FontWeight.ExtraBold), TextSize = 15 })
 	new("Frame", { Parent = prefix, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(1, 0, 0, 0) })
@@ -1186,7 +1186,7 @@ function NEON:CreateKeyPage(cfg)
 
 	spacer(fcol, 10, 8)
 	local authBtn = new("TextButton", { Parent = fcol, LayoutOrder = 9, AutoButtonColor = false, BackgroundColor3 = ACCENT, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 50), Text = "" })
-	corner(authBtn, 8); stroke(authBtn, 1.5, ACCENT)
+	corner(authBtn, 4); stroke(authBtn, 1.5, ACCENT)
 	local authWrap = new("Frame", { Parent = authBtn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
 	hlist(authWrap, 11).VerticalAlignment = Enum.VerticalAlignment.Center
 	local spin = new("Frame", { Parent = authWrap, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(16, 16), Visible = false })
@@ -1200,11 +1200,11 @@ function NEON:CreateKeyPage(cfg)
 	local linkRow = new("Frame", { Parent = fcol, LayoutOrder = 11, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40) })
 	hlist(linkRow, 10)
 	local getBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 1, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "GET A KEY →", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
-	new("UIFlexItem", { Parent = getBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(getBtn, 7); stroke(getBtn, 1, ACCENT, 0.72)
+	new("UIFlexItem", { Parent = getBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(getBtn, 4); stroke(getBtn, 1, ACCENT, 0.72)
 	local hwidBtn
 	if cfg.ShowHWID ~= false then   -- Copy-HWID button is optional (getBtn fills the row when hidden)
 		hwidBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 2, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "COPY HWID", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
-		new("UIFlexItem", { Parent = hwidBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(hwidBtn, 7); stroke(hwidBtn, 1, ACCENT, 0.72)
+		new("UIFlexItem", { Parent = hwidBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(hwidBtn, 4); stroke(hwidBtn, 1, ACCENT, 0.72)
 	end
 
 	spacer(fcol, 16, 12)
@@ -1223,6 +1223,7 @@ function NEON:CreateKeyPage(cfg)
 	-- SUCCESS overlay -------------------------------------------------------
 	local overlay = new("Frame", { Parent = card, BackgroundColor3 = ACCENT, Size = UDim2.fromScale(1, 1), ZIndex = 5, Visible = false, Active = true })
 	local ocol = new("Frame", { Parent = overlay, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 440, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 6 })
+	local ocolScale = new("UIScale", { Parent = ocol, Scale = 1 })
 	local ov = vlist(ocol, 16); ov.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	local check = new("TextLabel", { Parent = ocol, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.fromOffset(72, 72), Text = "✓", TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.ExtraBold), TextSize = 34, ZIndex = 6 }); corner(check, 999); stroke(check, 2.5, INK)
 	new("TextLabel", { Parent = ocol, LayoutOrder = 2, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), Text = "ACCESS\nGRANTED", FontFace = displayFont(), TextSize = 46, TextColor3 = INK, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 6 })
@@ -1232,7 +1233,7 @@ function NEON:CreateKeyPage(cfg)
 	local closeBtn = new("TextButton", { Parent = card, ZIndex = 20, AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -14, 0, 14), Size = UDim2.fromOffset(26, 26), BackgroundColor3 = INK, BackgroundTransparency = 0.55,
 		Text = "✕", TextColor3 = LIGHT, TextSize = 13, FontFace = bodyFont(Enum.FontWeight.Bold) })
-	corner(closeBtn, 6)
+	corner(closeBtn, 4)
 	closeBtn.MouseEnter:Connect(function() tween(closeBtn, { BackgroundTransparency = 0.25 }) end)
 	closeBtn.MouseLeave:Connect(function() tween(closeBtn, { BackgroundTransparency = 0.55 }) end)
 	closeBtn.MouseButton1Click:Connect(function() exit(function() if gui.Parent then gui:Destroy() end; if cfg.OnClose then task.spawn(cfg.OnClose) end end) end)
@@ -1284,8 +1285,17 @@ function NEON:CreateKeyPage(cfg)
 			if cfg.Callback then local s, r = pcall(cfg.Callback, key); valid = s and r and true or false else valid = (key == "DEMO") end
 			loading = false
 			if valid then
-				status = "ok"; refresh(); task.wait(0.45); overlay.Visible = true; task.wait(1.1)
-				exit(function()
+				status = "ok"; refresh(); task.wait(0.3)
+				-- reveal: cyan wipes in, the content pops, the check spins in
+				overlay.BackgroundTransparency = 1; ocolScale.Scale = 0.7; check.Rotation = -35; overlay.Visible = true
+				tween(overlay, { BackgroundTransparency = 0 }, TweenInfo.new(0.2, Enum.EasingStyle.Quad))
+				tween(ocolScale, { Scale = 1 }, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+				tween(check, { Rotation = 0 }, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+				task.wait(1.25)
+				-- dive into the app: zoom through + fade out
+				tween(uiscale, { Scale = fit * 1.18 }, TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.In))
+				tween(root, { GroupTransparency = 1 }, TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.In))
+				task.delay(0.44, function()
 					if cfg.OnSuccess then task.spawn(cfg.OnSuccess) elseif gui.Parent then gui:Destroy() end
 				end)
 			else
