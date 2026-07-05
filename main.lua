@@ -1292,17 +1292,8 @@ function NEON:CreateKeyPage(cfg)
 			if cfg.Callback then local s, r = pcall(cfg.Callback, key); valid = s and r and true or false else valid = (key == "DEMO") end
 			loading = false
 			if valid then
-				status = "ok"; refresh(); task.wait(0.3)
-				-- reveal: cyan wipes in, the content pops, the check spins in
-				overlay.BackgroundTransparency = 1; ocolScale.Scale = 0.7; check.Rotation = -35; overlay.Visible = true
-				tween(overlay, { BackgroundTransparency = 0 }, TweenInfo.new(0.2, Enum.EasingStyle.Quad))
-				tween(ocolScale, { Scale = 1 }, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
-				tween(check, { Rotation = 0 }, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
-				task.wait(1.25)
-				-- dive into the app: zoom through + fade out
-				tween(uiscale, { Scale = fit * 1.18 }, TweenInfo.new(0.42, Enum.EasingStyle.Quint, Enum.EasingDirection.In))
-				tween(root, { GroupTransparency = 1 }, TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.In))
-				task.delay(0.44, function()
+				status = "ok"; refresh(); task.wait(0.2)   -- brief "key accepted", then straight out to the menu
+				exit(function()
 					if cfg.OnSuccess then task.spawn(cfg.OnSuccess) elseif gui.Parent then gui:Destroy() end
 				end)
 			else
