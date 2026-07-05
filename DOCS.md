@@ -129,9 +129,12 @@ Tab:Keybind{ Title = "Fly Key", Default = "F", Callback = function(keycode) end 
 
 ### Dropdown
 ```lua
-Tab:Dropdown{ Title = "Weather", Options = {"CLEAR","RAIN","STORM"}, Default = "CLEAR",
+local d = Tab:Dropdown{ Title = "Weather", Options = {"CLEAR","RAIN","STORM"}, Default = "CLEAR",
               MaxHeight = 180,                 -- optional: menu scrolls past this height
-              Callback = function(opt) end }  -- :Set/:Get string. Popup scrolls when options overflow.
+              Disabled  = true,                -- preview stays visible but dimmed & can't be opened
+              Tooltip   = "Unlock at level 10",-- shown on hover (great for explaining a disabled one)
+              Callback  = function(opt) end }  -- :Set/:Get string. Popup scrolls when options overflow.
+d:SetDisabled(false)   -- toggle the disabled state at runtime
 ```
 
 ### Segmented (button group)
