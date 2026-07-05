@@ -1104,19 +1104,20 @@ function NEON:CreateKeyPage(cfg)
 	end
 	local function spacer(parent, h, lo) return new("Frame", { Parent = parent, LayoutOrder = lo, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, h) }) end
 
-	new("Frame", { Parent = gui, BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, Size = UDim2.fromScale(1, 1), Active = true })
-	local card = new("Frame", { Parent = gui, BackgroundColor3 = DARK, AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560), ClipsDescendants = true, Active = true })
-	corner(card, 16); stroke(card, 1, ACCENT, 0.84)
+	local root = new("Frame", { Parent = gui, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560) })
 	do local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
-		new("UIScale", { Parent = card, Scale = math.min(1, (vp.X - 40) / 760, (vp.Y - 40) / 560) }) end
+		new("UIScale", { Parent = root, Scale = math.min(1, (vp.X - 40) / 760, (vp.Y - 40) / 560) }) end
+	-- soft drop shadow (same 9-slice as the menu); no outline, 4px corners
+	new("ImageLabel", { Parent = root, BackgroundTransparency = 1, ZIndex = 0, Image = "rbxassetid://6014261993",
+		ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.72, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450),
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 90, 1, 90) })
+	local card = new("Frame", { Parent = root, BackgroundColor3 = DARK, ZIndex = 1, Size = UDim2.fromScale(1, 1), ClipsDescendants = true, Active = true })
+	corner(card, 4)
 	hlist(card, 0)
 
 	-- LEFT brand panel ------------------------------------------------------
 	local left = new("Frame", { Parent = card, LayoutOrder = 1, BackgroundColor3 = ACCENT, Size = UDim2.new(0, 290, 1, 0), ClipsDescendants = true })
-	new("TextLabel", { Parent = left, BackgroundTransparency = 1, Text = "M", FontFace = displayFont(), TextSize = 230,
-		TextColor3 = INK, TextTransparency = 0.94, Rotation = 8, TextXAlignment = Enum.TextXAlignment.Right,
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 50, 0, -56), Size = UDim2.fromOffset(230, 210) })
 	local ltop = new("Frame", { Parent = left, BackgroundTransparency = 1, ZIndex = 2, AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(30, 34), Size = UDim2.new(1, -60, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	vlist(ltop, 0)
@@ -1165,8 +1166,7 @@ function NEON:CreateKeyPage(cfg)
 	new("Frame", { Parent = prefix, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(1, 0, 0, 0) })
 	local box = new("TextBox", { Parent = inputBox, LayoutOrder = 2, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Text = "", PlaceholderText = "MODKIT-XXXX-XXXX-XXXX", PlaceholderColor3 = GREY, TextColor3 = LIGHT, ClearTextOnFocus = false, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left })
 	new("UIPadding", { Parent = box, PaddingLeft = UDim.new(0, 14) }); new("UIFlexItem", { Parent = box, FlexMode = Enum.UIFlexMode.Fill })
-	local pasteBtn = new("TextButton", { Parent = inputBox, LayoutOrder = 3, BackgroundTransparency = 1, AutoButtonColor = false, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 1, 0), Text = "PASTE", TextColor3 = ACCENT, TextTransparency = 0.3, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 10 })
-	pad(pasteBtn, 0, 15, 0, 15)
+	local pasteBtn = new("TextButton", { Parent = inputBox, LayoutOrder = 3, BackgroundTransparency = 1, AutoButtonColor = false, Size = UDim2.fromOffset(74, 50), Text = "PASTE", TextColor3 = ACCENT, TextTransparency = 0.3, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 10 })
 	new("Frame", { Parent = pasteBtn, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(0, 0, 0, 0) })
 	local msgRow = new("Frame", { Parent = inputArea, BackgroundTransparency = 1, Position = UDim2.fromOffset(0, 58), Size = UDim2.new(1, 0, 0, 16) })
 	hlist(msgRow, 7).VerticalAlignment = Enum.VerticalAlignment.Center
@@ -1187,14 +1187,24 @@ function NEON:CreateKeyPage(cfg)
 	hlist(linkRow, 10)
 	local getBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 1, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "GET A KEY →", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
 	new("UIFlexItem", { Parent = getBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(getBtn, 7); stroke(getBtn, 1, ACCENT, 0.72)
-	local hwidBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 2, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "COPY HWID", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
-	new("UIFlexItem", { Parent = hwidBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(hwidBtn, 7); stroke(hwidBtn, 1, ACCENT, 0.72)
+	local hwidBtn
+	if cfg.ShowHWID ~= false then   -- Copy-HWID button is optional (getBtn fills the row when hidden)
+		hwidBtn = new("TextButton", { Parent = linkRow, LayoutOrder = 2, AutoButtonColor = false, BackgroundTransparency = 1, Size = UDim2.new(0, 0, 1, 0), Text = "COPY HWID", TextColor3 = ACCENT, TextTransparency = 0.15, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 11 })
+		new("UIFlexItem", { Parent = hwidBtn, FlexMode = Enum.UIFlexMode.Fill }); corner(hwidBtn, 7); stroke(hwidBtn, 1, ACCENT, 0.72)
+	end
 
 	spacer(fcol, 16, 12)
 	local metaRow = new("Frame", { Parent = fcol, LayoutOrder = 13, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 28) })
 	new("Frame", { Parent = metaRow, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.9, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1), Position = UDim2.fromScale(0, 0) })
 	local metaL = label(metaRow, "HWID · " .. string.upper(string.sub(tostring(hwid), 1, 22)), 9.5, Enum.FontWeight.SemiBold, LIGHT); metaL.AnchorPoint = Vector2.new(0, 1); metaL.Position = UDim2.new(0, 0, 1, 0); metaL.TextTransparency = 0.7
-	local metaR = label(metaRow, "DISCORD · " .. string.upper(cfg.Discord or "gg/modkit"), 9.5, Enum.FontWeight.Bold, LIGHT); metaR.AnchorPoint = Vector2.new(1, 1); metaR.Position = UDim2.new(1, 0, 1, 0); metaR.TextTransparency = 0.7
+	local discordUrl = cfg.DiscordUrl or ("https://discord.gg/" .. string.gsub(cfg.Discord or "modkit", "^%s*gg/%s*", ""))
+	local metaR = new("TextButton", { Parent = metaRow, AutoButtonColor = false, BackgroundTransparency = 1, Text = "DISCORD · " .. string.upper(cfg.Discord or "gg/modkit"), TextColor3 = LIGHT, TextTransparency = 0.7, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 10, AutomaticSize = Enum.AutomaticSize.XY, AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 0, 1, 0), Size = UDim2.fromOffset(0, 0) })
+	metaR.MouseButton1Click:Connect(function()
+		pcall(function() if setclipboard then setclipboard(discordUrl) end end)
+		pcall(function() game:GetService("GuiService"):OpenBrowserWindow(discordUrl) end)
+	end)
+	metaR.MouseEnter:Connect(function() metaR.TextTransparency = 0.3 end)
+	metaR.MouseLeave:Connect(function() metaR.TextTransparency = 0.7 end)
 
 	-- SUCCESS overlay -------------------------------------------------------
 	local overlay = new("Frame", { Parent = card, BackgroundColor3 = ACCENT, Size = UDim2.fromScale(1, 1), ZIndex = 5, Visible = false, Active = true })
@@ -1254,10 +1264,12 @@ function NEON:CreateKeyPage(cfg)
 		pcall(function() if setclipboard then setclipboard(url) end end)
 		pcall(function() game:GetService("GuiService"):OpenBrowserWindow(url) end)
 	end)
-	hwidBtn.MouseButton1Click:Connect(function()
-		pcall(function() if setclipboard then setclipboard(tostring(hwid)) end end)
-		hwidBtn.Text = "COPIED ✓"; task.delay(1.4, function() if hwidBtn.Parent then hwidBtn.Text = "COPY HWID" end end)
-	end)
+	if hwidBtn then
+		hwidBtn.MouseButton1Click:Connect(function()
+			pcall(function() if setclipboard then setclipboard(tostring(hwid)) end end)
+			hwidBtn.Text = "COPIED ✓"; task.delay(1.4, function() if hwidBtn.Parent then hwidBtn.Text = "COPY HWID" end end)
+		end)
+	end
 	local spinConn
 	spinConn = RunService.RenderStepped:Connect(function()
 		if not gui.Parent then spinConn:Disconnect(); return end
