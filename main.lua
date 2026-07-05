@@ -1176,9 +1176,11 @@ function NEON:CreateKeyPage(cfg)
 	vlist(ltop, 0)
 	local logoRow = new("Frame", { Parent = ltop, LayoutOrder = 1, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	hlist(logoRow, 11).VerticalAlignment = Enum.VerticalAlignment.Center
-	local lbox = new("TextLabel", { Parent = logoRow, LayoutOrder = 1, BackgroundColor3 = INK, Size = UDim2.fromOffset(34, 34),
-		Text = string.sub(cfg.Brand or "MODKIT", 1, 1), TextColor3 = ACCENT, FontFace = displayFont(), TextSize = 19 })
-	corner(lbox, 8)
+	if cfg.ShowLogo ~= false then
+		local lbox = new("TextLabel", { Parent = logoRow, LayoutOrder = 1, BackgroundColor3 = INK, Size = UDim2.fromOffset(34, 34),
+			Text = string.sub(cfg.Brand or "MODKIT", 1, 1), TextColor3 = ACCENT, FontFace = displayFont(), TextSize = 19 })
+		corner(lbox, 8)
+	end
 	local blab = label(logoRow, string.upper(cfg.Brand or "MODKIT"), 16, Enum.FontWeight.Heavy, INK); blab.LayoutOrder = 2
 	spacer(ltop, 34, 2)
 	new("TextLabel", { Parent = ltop, LayoutOrder = 3, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y,
@@ -1204,8 +1206,10 @@ function NEON:CreateKeyPage(cfg)
 	pad(form, 38, 40, 38, 40)
 	local fcol = new("Frame", { Parent = form, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	vlist(fcol, 0)
-	local step = label(fcol, "STEP 01 — AUTHENTICATION", 10, Enum.FontWeight.Bold, ACCENT); step.LayoutOrder = 1; step.TextTransparency = 0.3
-	spacer(fcol, 8, 2)
+	if cfg.Step ~= false then
+		local step = label(fcol, cfg.Step or "STEP 01 — AUTHENTICATION", 10, Enum.FontWeight.Bold, ACCENT); step.LayoutOrder = 1; step.TextTransparency = 0.3
+		spacer(fcol, 8, 2)
+	end
 	new("TextLabel", { Parent = fcol, LayoutOrder = 3, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 0), Text = string.upper(cfg.Heading or "ENTER LICENSE KEY"), FontFace = displayFont(), TextSize = 36, TextColor3 = LIGHT, TextXAlignment = Enum.TextXAlignment.Left })
 	spacer(fcol, 7, 4)
 	local note = label(fcol, string.upper(cfg.Note or "Paste the key bound to your HWID below"), 12, Enum.FontWeight.SemiBold, LIGHT); note.LayoutOrder = 5; note.TextTransparency = 0.55
@@ -1220,7 +1224,7 @@ function NEON:CreateKeyPage(cfg)
 	local prefix = new("TextLabel", { Parent = inputBox, LayoutOrder = 1, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 1, 0), Text = "⌘", TextColor3 = ACCENT, FontFace = bodyFont(Enum.FontWeight.ExtraBold), TextSize = 15 })
 	pad(prefix, 0, 15, 0, 15)
 	new("Frame", { Parent = inputBox, LayoutOrder = 2, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0) })
-	local box = new("TextBox", { Parent = inputBox, LayoutOrder = 3, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Text = "", PlaceholderText = "MODKIT-XXXX-XXXX-XXXX", PlaceholderColor3 = GREY, TextColor3 = LIGHT, ClearTextOnFocus = false, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left })
+	local box = new("TextBox", { Parent = inputBox, LayoutOrder = 3, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), Text = "", PlaceholderText = cfg.Placeholder or "MODKIT-XXXX-XXXX-XXXX", PlaceholderColor3 = GREY, TextColor3 = LIGHT, ClearTextOnFocus = false, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left })
 	new("UIPadding", { Parent = box, PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14) }); new("UIFlexItem", { Parent = box, FlexMode = Enum.UIFlexMode.Fill })
 	new("Frame", { Parent = inputBox, LayoutOrder = 4, BackgroundColor3 = ACCENT, BackgroundTransparency = 0.8, BorderSizePixel = 0, Size = UDim2.new(0, 1, 1, 0) })
 	local pasteBtn = new("TextButton", { Parent = inputBox, LayoutOrder = 5, BackgroundTransparency = 1, AutoButtonColor = false, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 1, 0), Text = "PASTE", TextColor3 = ACCENT, TextTransparency = 0.3, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 10 })

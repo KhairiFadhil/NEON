@@ -181,6 +181,9 @@ NEON:CreateKeyPage({
     Build      = "v2.4.1",                 -- version shown bottom-left
 
     HWID       = nil,                      -- auto (gethwid / RbxAnalyticsService) if omitted
+    Step       = nil,                      -- right-panel step label; a string overrides it, false hides it
+    Placeholder= nil,                      -- key-input placeholder (default "MODKIT-XXXX-XXXX-XXXX")
+    ShowLogo   = true,                     -- false hides the brand logo square (keeps the name)
     ShowHWID   = true,                     -- false hides the "Copy HWID" button
     GetKeyUrl  = "https://discord.gg/x",   -- "Get a Key" opens this (copies as fallback)
     Discord    = "gg/modkit",              -- footer label; click opens the invite
