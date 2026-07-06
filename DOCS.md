@@ -138,6 +138,17 @@ local d = Tab:Dropdown{ Title = "Weather", Options = {"CLEAR","RAIN","STORM"}, D
 d:SetDisabled(false)   -- toggle the disabled state at runtime
 ```
 
+**Multi-select variant** — `Multi = true` turns options into checkboxes; the menu stays open and
+you toggle each one. Preview shows the joined selection (≤2) or `"N SELECTED"` (or `Placeholder`
+when empty). `Callback`/`Get`/`Set` use an **array of strings**:
+
+```lua
+local m = Tab:Dropdown{ Title = "Perks", Options = {"SPEED","JUMP","FLY","NOCLIP"},
+              Multi = true, Default = {"SPEED"}, Placeholder = "None",
+              Callback = function(list) end }   -- list = {"SPEED","FLY"}
+m:Set({ "FLY", "NOCLIP" }); print(m:Get())      -- array in / array out
+```
+
 ### Segmented (button group)
 ```lua
 Tab:Segmented{ Title = "Difficulty", Options = {"EASY","NORMAL","HARD"}, Default = "NORMAL",
