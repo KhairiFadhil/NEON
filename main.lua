@@ -920,7 +920,15 @@ function Tab:Dropdown(cfg)
 	autosaveCb(win, cfg)
 	local _, left, top, ctrl = makeRow(self._page)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
-	local value = cfg.Default or (cfg.Options and cfg.Options[1])
+	local multi = cfg.Multi or false                          -- checkbox multi-select variant
+	local value = (not multi) and (cfg.Default or (cfg.Options and cfg.Options[1])) or nil
+	local selSet, cbFills = {}, {}
+	if multi and type(cfg.Default) == "table" then for _, v in ipairs(cfg.Default) do selSet[v] = true end end
+	local function selectedList()
+		local t = {}
+		for _, o in ipairs(cfg.Options or {}) do if selSet[o] then t[#t + 1] = o end end
+		return t
+	end
 
 	-- button: no outline, subtle fill + hover tint
 	local btn = new("TextButton", { Parent = ctrl, AutoButtonColor = false, BorderSizePixel = 0,
@@ -932,6 +940,18 @@ function Tab:Dropdown(cfg)
 	local arrow = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -13, 0.5, 0), Size = UDim2.fromOffset(12, 12), Text = "▼", TextColor3 = INK,
 		FontFace = bodyFont(), TextSize = 10 })
+
+	-- preview text: single = the value; multi = joined selection, or "N SELECTED", or "NONE"
+	local function previewText()
+		if not multi then return string.upper(value or "") end
+		local list = selectedList()
+		if #list == 0 then return string.upper(cfg.Placeholder or "NONE") end
+		if #list <= 2 then return string.upper(table.concat(list, ", ")) end
+		return #list .. " SELECTED"
+	end
+	local function refreshPreview() vlbl.Text = previewText() end
+	local function refreshChecks() for o, f in pairs(cbFills) do f.Visible = selSet[o] == true end end
+	refreshPreview()
 
 	-- disabled: preview stays visible but dimmed, can't be opened; hover shows cfg.Tooltip
 	local disabled = cfg.Disabled or false
@@ -992,13 +1012,33 @@ function Tab:Dropdown(cfg)
 	for i, opt in ipairs(cfg.Options or {}) do
 		local ob = new("TextButton", { Parent = menu, LayoutOrder = i, AutoButtonColor = false, ZIndex = 61,
 			BackgroundColor3 = INK, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 30),
-			Text = string.upper(opt), TextColor3 = INK, TextTransparency = 1, FontFace = bodyFont(), TextSize = 12 })
-		opts[#opts + 1] = ob
+			Text = multi and "" or string.upper(opt), TextColor3 = INK, TextTransparency = 1, FontFace = bodyFont(), TextSize = 12 })
+		local fadeEl = ob
+		if multi then   -- checkbox on the left + left-aligned label
+			local cbx = new("Frame", { Parent = ob, ZIndex = 62, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 11, 0.5, 0),
+				Size = UDim2.fromOffset(15, 15), BackgroundColor3 = INK, BackgroundTransparency = 1 })
+			corner(cbx, 3); stroke(cbx, 1.5, INK)
+			local fill = new("Frame", { Parent = cbx, ZIndex = 62, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(0.6, 0.6), BackgroundColor3 = INK, BorderSizePixel = 0, Visible = selSet[opt] == true })
+			corner(fill, 2)
+			cbFills[opt] = fill
+			fadeEl = new("TextLabel", { Parent = ob, ZIndex = 61, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 34, 0.5, 0), Size = UDim2.new(1, -40, 1, 0), Text = string.upper(opt), TextColor3 = INK,
+				TextTransparency = 1, FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
+		end
+		opts[#opts + 1] = fadeEl
 		ob.MouseEnter:Connect(function() if isOpen then tween(ob, { BackgroundTransparency = 0.85 }) end end)
 		ob.MouseLeave:Connect(function() tween(ob, { BackgroundTransparency = 1 }) end)
 		ob.MouseButton1Click:Connect(function()
-			value = opt; vlbl.Text = string.upper(opt); close()
-			if cfg.Callback then task.spawn(cfg.Callback, opt) end
+			if multi then                      -- toggle, keep the menu open
+				selSet[opt] = (not selSet[opt]) or nil
+				cbFills[opt].Visible = selSet[opt] == true
+				refreshPreview()
+				if cfg.Callback then task.spawn(cfg.Callback, selectedList()) end
+			else
+				value = opt; vlbl.Text = string.upper(opt); close()
+				if cfg.Callback then task.spawn(cfg.Callback, opt) end
+			end
 		end)
 	end
 
@@ -1024,9 +1064,20 @@ function Tab:Dropdown(cfg)
 	end)
 	applyDisabled()
 
-	local api = { Set = function(_, v) value = v; vlbl.Text = string.upper(v) end, Get = function() return value end,
-		SetDisabled = function(_, v) disabled = v and true or false; if disabled and isOpen then close() end; applyDisabled() end }
-	bindFlag(win, cfg, function() return value end, function(v) api:Set(v) end)
+	local api = {
+		Get = function() return multi and selectedList() or value end,
+		Set = function(_, v)
+			if multi then
+				selSet = {}
+				if type(v) == "table" then for _, o in ipairs(v) do selSet[o] = true end end
+				refreshChecks(); refreshPreview()
+			else
+				value = v; vlbl.Text = string.upper(v)
+			end
+		end,
+		SetDisabled = function(_, v) disabled = v and true or false; if disabled and isOpen then close() end; applyDisabled() end,
+	}
+	bindFlag(win, cfg, function() return multi and selectedList() or value end, function(v) api:Set(v) end)
 	return api
 end
 
