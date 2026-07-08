@@ -26,23 +26,13 @@ local INK    = Color3.fromHex("0A0A0A")   -- black
 local BODY_FAMILY = "rbxasset://fonts/families/Montserrat.json"
 local function bodyFont(weight) return Font.new(BODY_FAMILY, weight or Enum.FontWeight.Medium) end
 
--- Display = Anton. Not a Roblox built-in, so on an executor we download+register the real
--- Google font once; if the fs API is missing we fall back to Oswald (closest built-in condensed).
-local DISPLAY_FONT
-do
-	local ok, font = pcall(function()
-		if not (writefile and getcustomasset) then return nil end
-		local ttf = "NEON_Anton.ttf"
-		if not (isfile and isfile(ttf)) then
-			writefile(ttf, game:HttpGet("https://github.com/google/fonts/raw/main/ofl/anton/Anton-Regular.ttf"))
-		end
-		local asset = getcustomasset(ttf)
-		writefile("NEON_Anton.json",
-			'{"name":"Anton","faces":[{"name":"Regular","weight":400,"style":"normal","assetId":"' .. asset .. '"}]}')
-		return Font.new(getcustomasset("NEON_Anton.json"))
-	end)
-	DISPLAY_FONT = (ok and font) or Font.new("rbxasset://fonts/families/Oswald.json", Enum.FontWeight.Bold)
-end
+-- Display font = Oswald (built-in condensed). We USED to download + register the real Anton Google font via
+-- writefile(HttpGet(github TTF)) + getcustomasset + Font.new at load — but that custom-font registration
+-- HARD-CRASHES the Roblox client non-deterministically on some executors (Potassium: "kadang bisa kadang ga",
+-- crashed inside the NEON module load, uncatchable by pcall — it's a native crash, not a Lua error). The download
+-- also YIELDED during module load. Oswald ships with Roblox = no download, no getcustomasset, no crash. If you want
+-- Anton back, register it OUT-OF-BAND before loading NEON and set NEON's font there, never at load.
+local DISPLAY_FONT = Font.new("rbxasset://fonts/families/Oswald.json", Enum.FontWeight.Bold)
 local function displayFont() return DISPLAY_FONT end
 
 ------------------------------------------------------------------- tiny helpers
