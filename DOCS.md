@@ -65,10 +65,12 @@ local Window = NEON:CreateWindow({
 | `Window:SaveConfig([name])` | Save all values to a JSON file |
 | `Window:LoadConfig([name])` | Load values from a JSON file |
 
-Behaviour: drag by the navbar or the bottom handle · **the corner grip resizes responsively —
-it zooms the whole menu (fonts, spacing, controls scale together) via a UIScale** · minimize
-via the hamburger (accordion) · `ToggleKey` shows/hides · the list caps and scrolls when a tab
-overflows (short tabs shrink to fit). Set the initial zoom with `Scale`.
+Behaviour: **auto-fits the player's screen** — on mobile / small viewports the whole menu scales
+down so it never overflows or gets cut off (re-fits on rotation; stops once you manually resize).
+Drag by the navbar or the bottom handle · **the corner grip resizes responsively — it zooms the
+whole menu (fonts, spacing, controls) via a UIScale** · minimize via the hamburger (accordion) ·
+`ToggleKey` shows/hides · the list caps and scrolls when a tab overflows (short tabs shrink to
+fit). `Scale` sets the max zoom (auto-fit only ever scales *down* from it).
 
 ---
 
