@@ -232,6 +232,18 @@ function NEON:CreateWindow(cfg)
 	win._panel = panel
 	-- responsive zoom: the resize grip drives this, scaling all content (fonts, spacing, controls)
 	win._scale = new("UIScale", { Parent = panel, Scale = cfg.Scale or 1 })
+	-- auto-fit to the player's screen so it never overflows / gets cut off on mobile / small
+	-- viewports. Footprint ≈ 772×660 at the panel's (60,60) offset; stops once the user resizes.
+	local function autofit()
+		if win._userResized then return end
+		local vp = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize) or Vector2.new(1280, 720)
+		win._scale.Scale = math.min(cfg.Scale or 1, (vp.X - 84) / 772, (vp.Y - 84) / 660)
+	end
+	autofit()
+	if workspace.CurrentCamera then
+		local vpc = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(autofit)
+		gui.Destroying:Connect(function() vpc:Disconnect() end)
+	end
 
 	-- soft drop shadow behind the panel (9-slice); low intensity for a gentle blur
 	local shadow = new("ImageLabel", { Parent = gui, BackgroundTransparency = 1, ZIndex = 0,
@@ -477,7 +489,7 @@ function NEON:CreateWindow(cfg)
 		resizeH.InputBegan:Connect(function(i)
 			if win._min then return end
 			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-				dragging = true; startInput = i.Position; startScale = win._scale.Scale
+				dragging = true; startInput = i.Position; startScale = win._scale.Scale; win._userResized = true
 				i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then dragging = false end end)
 			end
 		end)
