@@ -890,6 +890,10 @@ local function tooltip(win, target, getText)
 	win._gui.Destroying:Connect(function() if conn then conn:Disconnect() end end)
 end
 
+-- Dropdown: single-select, or Multi = true for checkbox multi-select.
+-- Search = true adds a filter box; it also turns itself on once the list is long enough to need one.
+-- Rows are built ONCE here and never rebuilt - filtering and selection only touch .Visible / a fill's
+-- .Visible. (WindUI rebuilds every row on each :Select(); that is the trap this avoids.)
 function Tab:Dropdown(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
@@ -937,71 +941,124 @@ function Tab:Dropdown(cfg)
 	end
 	tooltip(win, btn, function() return cfg.Tooltip end)
 
-	-- soft shadow behind the popup (no outline anywhere)
+	local allOpts = cfg.Options or {}
+	local searchOn = cfg.Search
+	if searchOn == nil then searchOn = #allOpts >= (cfg.SearchAfter or 8) end -- long lists get one for free
+	local OPT_H, SEARCH_H, PAD_Y = 30, 32, 8
+	local maxDH = cfg.MaxHeight or 180
+	local MENU_W = 190
+
+	-- ⭐ SHADOW GEOMETRY. A bleed that is equal on all four sides with no vertical offset is a GLOW,
+	-- not a shadow - it says the light has no direction, and that was the "aneh" look. Cascade's window
+	-- shadow gets it right with spread AND a downward offset AND a slice rect heavier below; our asset
+	-- is symmetric, so the bias has to come from the geometry: less bleed above than below.
+	-- It is a SIBLING of the CanvasGroup on purpose. A CanvasGroup renders into a buffer clipped to its
+	-- own rect, so a shadow parented inside one has its bleed cut off at the edge.
+	local SH_X, SH_TOP, SH_BOT, SH_DROP = 18, 10, 26, 4
 	local shadow = new("ImageLabel", { Parent = win._gui, Visible = false, ZIndex = 59, BackgroundTransparency = 1,
 		Image = "rbxassetid://6014261993", ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 1,
 		ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450) })
-	-- scrollable menu: capped height, scrolls when there are lots of options (MaxHeight overrides)
-	local optionH, maxDH = 30, (cfg.MaxHeight or 180)
-	local menuH = math.min(#(cfg.Options or {}) * optionH + 8, maxDH)
-	local menu = new("ScrollingFrame", { Parent = win._gui, Visible = false, ZIndex = 60, BackgroundColor3 = ACCENT,
-		BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.fromOffset(190, menuH),
-		CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 4,
+
+	-- ⭐ ONE CanvasGroup around everything, so open/close is a SINGLE GroupTransparency tween however
+	-- many options there are. The old code tweened every option label separately, on every open and
+	-- every close.
+	local root = new("CanvasGroup", { Parent = win._gui, Visible = false, ZIndex = 60, GroupTransparency = 1,
+		BackgroundColor3 = ACCENT, BackgroundTransparency = 0, BorderSizePixel = 0,
+		Size = UDim2.fromOffset(MENU_W, 0) })
+	corner(root, 6)
+	local scl = new("UIScale", { Parent = root, Scale = 0.96 })
+	vlist(root, 0)
+
+	local searchBox
+	if searchOn then
+		local wrap = new("Frame", { Parent = root, LayoutOrder = 0, BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, SEARCH_H) })
+		pad(wrap, 6, 8, 2, 8)
+		searchBox = new("TextBox", { Parent = wrap, BackgroundColor3 = INK, BackgroundTransparency = 0.9,
+			BorderSizePixel = 0, Size = UDim2.new(1, 0, 1, 0), Text = "", PlaceholderText = "SEARCH",
+			TextColor3 = INK, PlaceholderColor3 = INK, FontFace = bodyFont(), TextSize = 11,
+			ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left })
+		corner(searchBox, 4); pad(searchBox, 0, 8, 0, 8)
+	end
+
+	local menu = new("ScrollingFrame", { Parent = root, LayoutOrder = 1, BackgroundTransparency = 1,
+		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 4,
 		ScrollBarImageColor3 = INK, ScrollBarImageTransparency = 0.5,
 		ScrollingDirection = Enum.ScrollingDirection.Y, Active = true })
-	corner(menu, 6)
-	local scl = new("UIScale", { Parent = menu, Scale = 0.96 })
 	vlist(menu, 0); pad(menu, 4, 0, 4, 0)
 
-	local opts, isOpen, followConn = {}, false, nil
+	local rows, isOpen, conns = {}, false, {}
 	local T = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local SH = 16
 
+	-- how many rows are showing right now (search hides rows, it never destroys them)
+	local function visibleCount()
+		local n = 0
+		for _, r in ipairs(rows) do if r.Visible then n = n + 1 end end
+		return n
+	end
+
+	local function layout()
+		local listH = math.min(visibleCount() * OPT_H + PAD_Y, maxDH)
+		menu.Size = UDim2.new(1, 0, 0, listH)
+		root.Size = UDim2.fromOffset(btn.Size.X.Offset, listH + (searchOn and SEARCH_H or 0))
+	end
+
+	-- ⭐ Position from SIGNALS, never per frame (this is what both reference libraries do).
+	-- Clamped to the viewport with an edge buffer, and flipped above the button when it would not
+	-- fit below - Cascade's math.clamp approach rather than WindUI's hard-coded topbar offset.
+	local EDGE = 6
 	local function positionAt()
 		if not btn.Parent then return end
-		-- Menu + shadow are ScreenGui children, so use GUI-LOCAL coords (panel.Position is local;
-		-- add the button's offset within the panel). Using AbsolutePosition double-counts the
-		-- ScreenGui's own offset and drifts the shadow away from the menu.
 		local p = win._panel
+		local sc = math.max(win._scale.Scale, 0.01)
 		local bx = p.Position.X.Offset + (btn.AbsolutePosition.X - p.AbsolutePosition.X)
-		local by = p.Position.Y.Offset + (btn.AbsolutePosition.Y - p.AbsolutePosition.Y) + btn.AbsoluteSize.Y + 6
-		menu.Position = UDim2.fromOffset(bx, by)
-		menu.Size = UDim2.fromOffset(btn.Size.X.Offset, menuH)   -- base width + capped height; UIScale matches the button
-		shadow.Position = UDim2.fromOffset(bx - SH, by - SH)
-		shadow.Size = UDim2.fromOffset(menu.AbsoluteSize.X + SH * 2, menu.AbsoluteSize.Y + SH * 2)
+		local by = p.Position.Y.Offset + (btn.AbsolutePosition.Y - p.AbsolutePosition.Y)
+		local onScreenH = root.Size.Y.Offset * sc
+		local below = by + btn.AbsoluteSize.Y + 6
+		local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+		-- not enough room under the button -> open upwards instead of running off the screen
+		if below + onScreenH > vp.Y - EDGE then
+			local above = by - onScreenH - 6
+			if above >= EDGE then below = above end
+		end
+		root.Position = UDim2.fromOffset(bx, below)
+		-- ⭐ size the shadow from the menu's OWN offsets scaled by the panel zoom. AbsoluteSize already
+		-- includes the UIScale the shadow does not carry, which is why the old padding drifted on zoom.
+		local w, h = root.Size.X.Offset * sc, onScreenH
+		shadow.Position = UDim2.fromOffset(bx - SH_X, below - SH_TOP + SH_DROP)
+		shadow.Size = UDim2.fromOffset(w + SH_X * 2, h + SH_TOP + SH_BOT)
 	end
-	local function fade(hidden)
-		tween(menu, { BackgroundTransparency = hidden and 1 or 0 }, T)
-		tween(shadow, { ImageTransparency = hidden and 1 or 0.55 }, T)
-		for _, ob in ipairs(opts) do tween(ob, { TextTransparency = hidden and 1 or 0 }, T) end
-	end
+
 	local function close()
 		if not isOpen then return end
 		isOpen = false
-		if followConn then followConn:Disconnect(); followConn = nil end
-		fade(true)
-		tween(scl, { Scale = win._scale.Scale * 0.96 }, T); tween(arrow, { Rotation = 0 }, T); tween(btn, { BackgroundTransparency = 0.9 }, T)
-		task.delay(0.2, function() if not isOpen then menu.Visible = false; shadow.Visible = false end end)
+		for _, c in ipairs(conns) do c:Disconnect() end
+		conns = {}
+		tween(root, { GroupTransparency = 1 }, T)
+		tween(shadow, { ImageTransparency = 1 }, T)
+		tween(scl, { Scale = win._scale.Scale * 0.96 }, T)
+		tween(arrow, { Rotation = 0 }, T); tween(btn, { BackgroundTransparency = 0.9 }, T)
+		task.delay(0.2, function() if not isOpen then root.Visible = false; shadow.Visible = false end end)
 	end
 
-	for i, opt in ipairs(cfg.Options or {}) do
-		local ob = new("TextButton", { Parent = menu, LayoutOrder = i, AutoButtonColor = false, ZIndex = 61,
-			BackgroundColor3 = INK, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 30),
-			Text = multi and "" or string.upper(opt), TextColor3 = INK, TextTransparency = 1, FontFace = bodyFont(), TextSize = 12 })
-		local fadeEl = ob
+	for i, opt in ipairs(allOpts) do
+		local ob = new("TextButton", { Parent = menu, LayoutOrder = i, AutoButtonColor = false,
+			BackgroundColor3 = INK, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, OPT_H),
+			Text = multi and "" or string.upper(opt), TextColor3 = INK, FontFace = bodyFont(), TextSize = 12 })
 		if multi then   -- checkbox on the left + left-aligned label
-			local cbx = new("Frame", { Parent = ob, ZIndex = 62, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 11, 0.5, 0),
+			local cbx = new("Frame", { Parent = ob, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 11, 0.5, 0),
 				Size = UDim2.fromOffset(15, 15), BackgroundColor3 = INK, BackgroundTransparency = 1 })
 			corner(cbx, 3); stroke(cbx, 1.5, INK)
-			local fill = new("Frame", { Parent = cbx, ZIndex = 62, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+			local fill = new("Frame", { Parent = cbx, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromScale(0.6, 0.6), BackgroundColor3 = INK, BorderSizePixel = 0, Visible = selSet[opt] == true })
 			corner(fill, 2)
 			cbFills[opt] = fill
-			fadeEl = new("TextLabel", { Parent = ob, ZIndex = 61, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
+			new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, 34, 0.5, 0), Size = UDim2.new(1, -40, 1, 0), Text = string.upper(opt), TextColor3 = INK,
-				TextTransparency = 1, FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
+				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
 		end
-		opts[#opts + 1] = fadeEl
+		rows[#rows + 1] = ob
 		ob.MouseEnter:Connect(function() if isOpen then tween(ob, { BackgroundTransparency = 0.85 }) end end)
 		ob.MouseLeave:Connect(function() tween(ob, { BackgroundTransparency = 1 }) end)
 		ob.MouseButton1Click:Connect(function()
@@ -1016,28 +1073,69 @@ function Tab:Dropdown(cfg)
 			end
 		end)
 	end
+	layout()
+
+	-- ⭐ FILTER = .Visible only, and ONE re-measure per keystroke. WindUI does its two recalcs INSIDE
+	-- the per-option loop, i.e. O(n) layout reads per keypress on a long list. Plain-text find (the
+	-- `true` 4th arg) so a "(" or "%" typed into the box cannot blow up as a Lua pattern.
+	if searchBox then
+		searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+			local q = string.lower(searchBox.Text)
+			for k, r in ipairs(rows) do
+				r.Visible = (q == "") or (string.find(string.lower(allOpts[k]), q, 1, true) ~= nil)
+			end
+			layout(); positionAt()
+		end)
+	end
 
 	local function open()
 		isOpen = true
 		local vs = win._scale.Scale            -- match the panel's responsive zoom
 		scl.Scale = vs * 0.96
-		menu.Visible = true; shadow.Visible = true
-		positionAt(); task.defer(positionAt)
-		fade(false)
+		root.Visible = true; shadow.Visible = true
+		layout(); positionAt(); task.defer(positionAt)  -- one deferred pass so layout has settled
+		tween(root, { GroupTransparency = 0 }, T)
+		tween(shadow, { ImageTransparency = 0.62 }, T)
 		tween(scl, { Scale = vs }, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
 		tween(arrow, { Rotation = 180 }, T); tween(btn, { BackgroundTransparency = 0.82 }, T)
-		followConn = RunService.RenderStepped:Connect(positionAt)   -- follow the panel while open
-		win._openDropdown = menu; win._closePopup = close
+		-- follow the button/panel through SIGNALS rather than a RenderStepped poll
+		conns[#conns + 1] = btn:GetPropertyChangedSignal("AbsolutePosition"):Connect(positionAt)
+		conns[#conns + 1] = win._panel:GetPropertyChangedSignal("AbsolutePosition"):Connect(positionAt)
+		conns[#conns + 1] = win._panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(positionAt)
+		win._openDropdown = root; win._closePopup = close; win._openBtn = btn
 	end
 
 	btn.MouseEnter:Connect(function() if not isOpen and not disabled then tween(btn, { BackgroundTransparency = 0.82 }) end end)
 	btn.MouseLeave:Connect(function() if not isOpen and not disabled then tween(btn, { BackgroundTransparency = 0.9 }) end end)
 	btn.MouseButton1Click:Connect(function()
 		if disabled then return end
-		if win._closePopup and win._openDropdown ~= menu then win._closePopup(); win._openDropdown = nil; win._closePopup = nil end
+		if win._closePopup and win._openDropdown ~= root then win._closePopup(); win._openDropdown = nil; win._closePopup = nil end
 		if isOpen then close() else open() end
 	end)
 	applyDisabled()
+
+	-- ⭐ CLOSE ON AN OUTSIDE CLICK. Nothing did this before - the menu only closed when another
+	-- dropdown opened or the tab changed, so clicking empty panel space left it hanging. ONE listener
+	-- per WINDOW, shared by every dropdown in it: both reference libraries connect one InputBegan per
+	-- DROPDOWN, which is the single place neither of them scales.
+	if not win._outsideConn then
+		win._outsideConn = UserInputService.InputBegan:Connect(function(i, gpe)
+			if gpe then return end
+			if i.UserInputType ~= Enum.UserInputType.MouseButton1 and i.UserInputType ~= Enum.UserInputType.Touch then return end
+			local pop = win._openDropdown
+			if not (pop and pop.Visible and win._closePopup) then return end
+			local m = UserInputService:GetMouseLocation()
+			local function inside(o)
+				local ap, as = o.AbsolutePosition, o.AbsoluteSize
+				return m.X >= ap.X and m.X <= ap.X + as.X and m.Y >= ap.Y and m.Y <= ap.Y + as.Y
+			end
+			-- the button itself is excluded by its own click handler, which toggles; this only has to
+			-- avoid stealing a click that landed in the open menu.
+			if inside(pop) then return end
+			if win._openBtn and inside(win._openBtn) then return end
+			win._closePopup(); win._openDropdown = nil; win._closePopup = nil
+		end)
+	end
 
 	local api = {
 		Get = function() return multi and selectedList() or value end,
