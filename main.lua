@@ -399,38 +399,10 @@ function NEON:CreateWindow(cfg)
 	hlist(tabsRow, 0)
 	win._tabBar = tabsRow
 
-	-- HEADER
-	local header = new("Frame", { Parent = body, LayoutOrder = 2, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(header, 8, 24, 6, 24)
-	local hrow = hlist(header, 12); hrow.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	local hL = new("Frame", { Parent = header, LayoutOrder = 1, BackgroundTransparency = 1,
-		AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(0, 0, 0, 0) })
-	new("UIFlexItem", { Parent = hL, FlexMode = Enum.UIFlexMode.Fill })
-	vlist(hL, 2)
-	local cat = label(hL, "CATEGORY — EDITING", 10, Enum.FontWeight.Medium, INK)
-	cat.LayoutOrder = 1; cat.TextTransparency = 0.47
-	-- Crop the Anton em-box's empty bottom (descender space): top-align + a box shorter than the
-	-- font size so the caps hug the box, with no wasted vertical padding under the title.
-	local bigTitle = new("TextLabel", { Parent = hL, LayoutOrder = 2, BackgroundTransparency = 1,
-		AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 0, 66), Text = "",
-		TextColor3 = INK, FontFace = displayFont(), TextSize = 80, ClipsDescendants = true,
-		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
-	local hR = new("Frame", { Parent = header, LayoutOrder = 2, BackgroundTransparency = 1,
-		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
-	local hRl = vlist(hR, 5); hRl.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	local countLbl = new("TextLabel", { Parent = hR, LayoutOrder = 1, BackgroundTransparency = 1,
-		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0), Text = "✳ 0 ACTIVE",
-		TextColor3 = INK, FontFace = displayFont(), TextSize = 15, TextXAlignment = Enum.TextXAlignment.Right })
-	local sub2 = label(hR, "TOGGLES ENABLED", 9.5, Enum.FontWeight.Medium, INK)
-	sub2.LayoutOrder = 2; sub2.TextTransparency = 0.53; sub2.TextXAlignment = Enum.TextXAlignment.Right
-	win._catLbl, win._bigTitle, win._countLbl = cat, bigTitle, countLbl
-	-- accent bar (indented under the title)
-	local barWrap = new("Frame", { Parent = body, LayoutOrder = 3, BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 8) })
-	new("Frame", { Parent = barWrap, BackgroundColor3 = INK, BorderSizePixel = 0,
-		Size = UDim2.new(0, 200, 0, 2.5), Position = UDim2.fromOffset(24, 2) })
-
+	-- No page header (2026-09-21): the "CATEGORY - <tab>" line, the 80px title repeating the tab
+	-- name, the active-toggle counter and the accent bar all sat here. They restated the highlighted
+	-- tab button and ate ~110px above the first control. _catLbl/_bigTitle/_countLbl are therefore
+	-- never set, and their three writers below are nil-safe rather than pointing at hidden labels.
 	-- LIST (scrolling; holds one page per tab)
 	local scroll = new("ScrollingFrame", { Parent = body, LayoutOrder = 4, BackgroundTransparency = 1,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0),
@@ -590,6 +562,7 @@ end
 function NEON:_refreshCount()
 	local n = 0
 	for _, on in pairs(self._toggleStates) do if on then n += 1 end end
+	if not self._countLbl then return end -- no header (see CreateWindow)
 	self._countLbl.Text = "✳ " .. n .. " ACTIVE"
 end
 
@@ -603,8 +576,8 @@ function NEON:_selectTab(tab)
 		tb._page.Visible = (tb == tab)
 		if tb._refresh then tb._refresh() end
 	end
-	self._bigTitle.Text = string.upper(tab._title)
-	self._catLbl.Text = "CATEGORY — " .. string.upper(tab._title)
+	if self._bigTitle then self._bigTitle.Text = string.upper(tab._title) end
+	if self._catLbl then self._catLbl.Text = "CATEGORY — " .. string.upper(tab._title) end
 	if self._fitScroll then task.defer(self._fitScroll) end
 end
 
