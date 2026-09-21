@@ -1138,6 +1138,57 @@ function Tab:Button(cfg)
 	return btn
 end
 
+-- Stats strip: a row of read-only cells (caption / value / sub-caption) for the top of a tab.
+-- cfg = { Items = { { Title = "Bank", Value = "$0", Desc = "Cash banked" }, ... } }
+-- NOT uppercased on purpose - every control row here is UPPERCASE, so mixed case is what marks
+-- this out as a readout rather than something you can click.
+-- Cells split the width evenly MINUS the 1px dividers, so the row can never overflow the page.
+function Tab:Stats(cfg)
+	local items = (type(cfg) == "table" and cfg.Items) or {}
+	local n = #items
+	if n == 0 then return { Set = function() end, SetAll = function() end } end
+	local outer = new("Frame", { Parent = self._page, BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	pad(outer, 16, 24, 6, 24)
+	local card = new("Frame", { Parent = outer, BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	corner(card, 8); stroke(card, 1, INK, 0.82)
+	local row = new("Frame", { Parent = card, BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	hlist(row, 0)
+	local cells = {}
+	for i, it in ipairs(items) do
+		if i > 1 then
+			new("Frame", { Parent = row, LayoutOrder = i * 2 - 1, BackgroundColor3 = INK,
+				BackgroundTransparency = 0.86, BorderSizePixel = 0, Size = UDim2.fromOffset(1, 58) })
+		end
+		-- the -(n-1)/n offset is the dividers' 1px each, shared out so the cells still total 100%
+		local cell = new("Frame", { Parent = row, LayoutOrder = i * 2, BackgroundTransparency = 1,
+			Size = UDim2.new(1 / n, -(n - 1) / n, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+		pad(cell, 14, 16, 14, 18)
+		vlist(cell, 3)
+		local function line(text, size, weight, trans, order)
+			local l = label(cell, text, size, weight, INK)
+			l.LayoutOrder = order; l.TextTransparency = trans
+			-- wrap instead of AutomaticSize.X-ing past the cell edge on a narrow panel
+			l.AutomaticSize = Enum.AutomaticSize.Y; l.Size = UDim2.new(1, 0, 0, 0); l.TextWrapped = true
+			return l
+		end
+		line(tostring(it.Title or ""), 13, Enum.FontWeight.Medium, 0.3, 1)
+		cells[i] = line(tostring(it.Value or ""), 21, Enum.FontWeight.ExtraBold, 0, 2)
+		line(tostring(it.Desc or ""), 11, Enum.FontWeight.Medium, 0.45, 3)
+	end
+	local handle = {}
+	function handle:Set(i, value)
+		local l = cells[i]
+		if l then l.Text = tostring(value) end
+	end
+	function handle:SetAll(values)
+		for i, v in ipairs(values or {}) do self:Set(i, v) end
+	end
+	return handle
+end
+
 -- Section header: a divider line + small bar + uppercase label to group controls.
 function Tab:Section(cfg)
 	local title = (type(cfg) == "table" and (cfg.Title or "")) or tostring(cfg or "")
