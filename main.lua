@@ -1485,7 +1485,10 @@ function Tab:Section(cfg)
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1), Visible = not firstOnPage })
 	local inner = new("Frame", { Parent = sec, LayoutOrder = 2, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(inner, 4, 24, 4, 24) -- symmetric + small; the page supplies the gap around it
+	-- ⭐ the top pad follows the DIVIDER (2026-09-22). With a divider the label needs room under it;
+	-- without one (first on the page) it must be 0, or the label sits lower than any other opening
+	-- element. Bottom 2 + the page's 10 list gap = 12 below, matching the 12 above.
+	pad(inner, firstOnPage and 0 or 12, 24, 2, 24)
 	hlist(inner, 9).VerticalAlignment = Enum.VerticalAlignment.Center
 	new("Frame", { Parent = inner, LayoutOrder = 1, BackgroundColor3 = INK, BorderSizePixel = 0, Size = UDim2.fromOffset(16, 2.5) })
 	local l = label(inner, string.upper(title), 11, Enum.FontWeight.ExtraBold, INK)
