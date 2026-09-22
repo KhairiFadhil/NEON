@@ -274,7 +274,13 @@ local function makeRow(page, cfg)
 		if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
 	end
 
+	-- ⭐ CLIP THE TEXT COLUMN (2026-09-22, user "nembus nih"). addDesc uses a natural-width label on
+	-- purpose — a scale-width child in a flex-Fill column resolves against 0 and wraps to nothing — so a
+	-- long desc simply grew past the column and drew OVER the control. MEASURED on the webhook row:
+	-- desc right edge 524 vs control left edge 464, a 60px overlap. Clipping cuts it at the column
+	-- boundary instead. A hard cut is not pretty; overlapping the control silently is worse.
 	local left = new("Frame", { Parent = content, BackgroundTransparency = 1, LayoutOrder = 1,
+		ClipsDescendants = true,
 		AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(0, 0, 0, 0) })
 	new("UIFlexItem", { Parent = left, FlexMode = Enum.UIFlexMode.Fill })
 	vlist(left, 5)
