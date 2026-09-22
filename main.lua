@@ -21,6 +21,7 @@ local RunService        = game:GetService("RunService")
 ------------------------------------------------------------------- theme
 local ACCENT = Color3.fromHex("A8D8EA")   -- cyan
 local INK    = Color3.fromHex("0A0A0A")   -- black
+local DANGER = Color3.fromHex("C62828")   -- destructive actions only (Button{ Danger = true })
 
 -- Body ~= Archivo. Montserrat (built-in) is close and ships every weight, so we keep it.
 local BODY_FAMILY = "rbxasset://fonts/families/Montserrat.json"
@@ -783,6 +784,13 @@ function NEON:CreateTab(cfg)
 	local win = self
 	local page = new("Frame", { Parent = win._scroll, BackgroundTransparency = 1, Visible = false,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	-- ⭐ TOP/BOTTOM BREATHING ROOM ON THE PAGE, not on the row (2026-09-22, user "vehicle kaya ga ada
+	-- padding atas bawahnya, begitu juga protect"). The card layout puts its gap on the row's BOTTOM only,
+	-- so a tab opening on a Section looked right (Section has its own top padding) while one opening
+	-- straight onto a row sat flush against the tab bar — which is Vehicle and Protect exactly, the only
+	-- two that start with a Toggle. Fixing it here covers every tab whatever it starts with, and leaves
+	-- the spacing between cards alone.
+	pad(page, 12, 0, 12, 0)
 	vlist(page, 0)
 	local btn = new("TextButton", { Parent = win._tabBar, BackgroundColor3 = ACCENT, BorderSizePixel = 0,
 		Text = "", Size = UDim2.new(1, 0, 1, 0), AutoButtonColor = false })
@@ -1347,22 +1355,49 @@ function Tab:Colorpicker(cfg)
 	return api
 end
 
+-- Button. Options beyond the usual Title/Desc/Icon:
+--   Text        the label on the button itself (default "Run")
+--   ButtonIcon  a Lucide name drawn inside the button, left of the label
+--   Danger      red fill + red text, for destructive actions
+--   Placeholder adds a TextBox beside the button; its text is passed to Callback
+-- ⭐ This used to render "EXECUTE →" for every button in the library, so a row titled "Save Config
+-- to Workspace" got a button labelled EXECUTE with an arrow (2026-09-22, user "execute jelek banget").
 function Tab:Button(cfg)
 	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
-	local btn = new("TextButton", { Parent = ctrl, AutoButtonColor = false, BackgroundColor3 = INK, BorderSizePixel = 0,
-		AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 42), Text = "" })
-	corner(btn, 4); pad(btn, 12, 22, 12, 22)
+	hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
+
+	-- optional text box to the LEFT of the button (mockup: "Config name..." beside Save)
+	local box
+	if cfg.Placeholder then
+		box = new("TextBox", { Parent = ctrl, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.92,
+			BorderSizePixel = 0, Size = UDim2.fromOffset(cfg.InputWidth or 190, 42), Text = "",
+			PlaceholderText = cfg.Placeholder, TextColor3 = INK, PlaceholderColor3 = INK,
+			FontFace = bodyFont(), TextSize = 12, ClearTextOnFocus = false,
+			TextXAlignment = Enum.TextXAlignment.Left })
+		corner(box, 6); pad(box, 0, 12, 0, 12)
+	end
+
+	local danger = cfg.Danger == true
+	local fg = danger and DANGER or ACCENT
+	local btn = new("TextButton", { Parent = ctrl, LayoutOrder = 2, AutoButtonColor = false,
+		BackgroundColor3 = danger and DANGER or INK, BackgroundTransparency = danger and 0.88 or 0,
+		BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 42), Text = "" })
+	corner(btn, 6); pad(btn, 12, 18, 12, 18)
 	local wrap = new("Frame", { Parent = btn, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.XY,
 		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(0,0) })
-	hlist(wrap, 10).VerticalAlignment = Enum.VerticalAlignment.Center
-	local l = label(wrap, string.upper(cfg.Text or "EXECUTE"), 13, Enum.FontWeight.ExtraBold, ACCENT); l.LayoutOrder = 1
-	local a = label(wrap, "→", 15, Enum.FontWeight.ExtraBold, ACCENT); a.LayoutOrder = 2
+	hlist(wrap, 8).VerticalAlignment = Enum.VerticalAlignment.Center
+	makeIcon(wrap, cfg.ButtonIcon, 16, 1, fg)
+	local l = label(wrap, cfg.Text or "Run", 13, Enum.FontWeight.ExtraBold, fg); l.LayoutOrder = 2
+
+	local restT = danger and 0.88 or 0
+	btn.MouseEnter:Connect(function() tween(btn, { BackgroundTransparency = danger and 0.8 or 0.12 }) end)
+	btn.MouseLeave:Connect(function() tween(btn, { BackgroundTransparency = restT }) end)
 	btn.MouseButton1Click:Connect(function()
-		self._win:Notify(cfg.Title .. " — Executed")
-		if cfg.Callback then task.spawn(cfg.Callback) end
+		self._win:Notify(cfg.Title)
+		if cfg.Callback then task.spawn(cfg.Callback, box and box.Text or nil) end
 	end)
-	return btn
+	return { Instance = btn, Input = box, GetText = function() return box and box.Text or "" end }
 end
 
 -- Stats strip: a row of read-only cells (caption / value / sub-caption) for the top of a tab.
