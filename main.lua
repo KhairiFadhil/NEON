@@ -1461,11 +1461,19 @@ end
 -- Section header: a divider line + small bar + uppercase label to group controls.
 function Tab:Section(cfg)
 	local title = (type(cfg) == "table" and (cfg.Title or "")) or tostring(cfg or "")
+	-- ⭐ NO DIVIDER WHEN THIS SECTION OPENS THE PAGE (2026-09-22). The hairline separates a section
+	-- from the content ABOVE it; as the first element there is nothing above, and it lands ~13px under
+	-- the tab bar's own bottom border (MEASURED: tab bar bottom 159, page top 160, divider at page Y 12)
+	-- — two parallel rules that read as a rendering mistake. Later sections keep it; that is its case.
+	local firstOnPage = true
+	for _, c in ipairs(self._page:GetChildren()) do
+		if c:IsA("GuiObject") then firstOnPage = false; break end
+	end
 	local sec = new("Frame", { Parent = self._page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	vlist(sec, 0)
 	new("Frame", { Parent = sec, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.78,
-		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
+		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1), Visible = not firstOnPage })
 	local inner = new("Frame", { Parent = sec, LayoutOrder = 2, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	pad(inner, 4, 24, 4, 24) -- symmetric + small; the page supplies the gap around it
