@@ -1388,12 +1388,21 @@ function Tab:Button(cfg)
 	local btn = new("TextButton", { Parent = ctrl, LayoutOrder = 2, AutoButtonColor = false,
 		BackgroundColor3 = danger and DANGER or INK, BackgroundTransparency = danger and 0.88 or 0,
 		BorderSizePixel = 0, AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 42), Text = "" })
-	corner(btn, 6); pad(btn, 12, 18, 12, 18)
-	local wrap = new("Frame", { Parent = btn, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.XY,
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(0,0) })
-	hlist(wrap, 8).VerticalAlignment = Enum.VerticalAlignment.Center
-	makeIcon(wrap, cfg.ButtonIcon, 16, 1, fg)
-	local l = label(wrap, cfg.Text or "Run", 13, Enum.FontWeight.ExtraBold, fg); l.LayoutOrder = 2
+	-- ⭐ CONTENT IN NORMAL FLOW, NOT A CENTRED OVERLAY (2026-09-22, user "button juga rusak").
+	-- The label used to sit in a wrapper anchored (0.5,0.5) at Position fromScale(0.5,0.5), and
+	-- AutomaticSize EXCLUDES scale-positioned children — the dependency is circular — so this button
+	-- could never grow to fit. MEASURED: btn 97 vs content 122 for "Reset to Default", icon hanging
+	-- 12px outside the fill, while short labels like "Save" (52) fit by luck. The flaw predates the
+	-- redesign; "EXECUTE" was simply always short enough to hide it.
+	-- (The TAB button's icon wrapper keeps that pattern on purpose: a tab is FIXED width, so centring
+	-- a scale-positioned child in it is correct — nothing there depends on AutomaticSize.)
+	-- Vertical padding is 0 on purpose: the height is fixed at 42 and VerticalAlignment centres the row.
+	corner(btn, 6); pad(btn, 0, 18, 0, 18)
+	local bl = hlist(btn, 8)
+	bl.VerticalAlignment = Enum.VerticalAlignment.Center
+	bl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	makeIcon(btn, cfg.ButtonIcon, 16, 1, fg)
+	local l = label(btn, cfg.Text or "Run", 13, Enum.FontWeight.ExtraBold, fg); l.LayoutOrder = 2
 
 	local restT = danger and 0.88 or 0
 	btn.MouseEnter:Connect(function() tween(btn, { BackgroundTransparency = danger and 0.8 or 0.12 }) end)
