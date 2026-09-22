@@ -278,13 +278,16 @@ function NEON:CreateWindow(cfg)
 
 	-- Heartbeat (not changed-signals): AutomaticSize shifts AbsolutePosition a frame late, so a
 	-- signal-based follow lags. One cheap per-frame follow keeps shadow + handles exactly pinned.
-	local SH = 34
+	-- ⭐ DIRECTIONAL, not a halo (2026-09-21). This spread SH=34 evenly on all four sides with no
+	-- vertical offset, which is what made it read as a glow rather than a cast shadow. Same shape as the
+	-- dropdown menu's fix, scaled to the panel: less bleed above than below, plus a small drop.
+	local SH, SH_TOP, SH_BOT, SH_DROP = 34, 19, 49, 8
 	local uiConn = RunService.Heartbeat:Connect(function()
 		if not panel.Parent then return end
 		local px, py = panel.Position.X.Offset, panel.Position.Y.Offset
 		local s = panel.AbsoluteSize
-		shadow.Position = UDim2.fromOffset(px - SH, py - SH)
-		shadow.Size = UDim2.fromOffset(s.X + SH * 2, s.Y + SH * 2)
+		shadow.Position = UDim2.fromOffset(px - SH, py - SH_TOP + SH_DROP)
+		shadow.Size = UDim2.fromOffset(s.X + SH * 2, s.Y + SH_TOP + SH_BOT)
 		shadow.Visible = panel.Visible
 		local show = panel.Visible and not win._min
 		moveH.Visible = show; resizeH.Visible = show
@@ -1220,7 +1223,9 @@ function Tab:Stats(cfg)
 	if n == 0 then return { Set = function() end, SetAll = function() end } end
 	local outer = new("Frame", { Parent = self._page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(outer, 16, 24, 6, 24)
+	-- ⭐ equal above and below (2026-09-21, user "padding atas dan bawah ga sama"). 16/6 was copied
+	-- from Section, where the header leans into the rows under it; this is a card and wants symmetry.
+	pad(outer, 14, 24, 14, 24)
 	local card = new("Frame", { Parent = outer, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	corner(card, 8); stroke(card, 1, INK, 0.82)
@@ -1327,7 +1332,9 @@ function NEON:CreateKeyPage(cfg)
 	-- soft drop shadow — same 9-slice, margin (34/side) and intensity as the menu
 	new("ImageLabel", { Parent = root, BackgroundTransparency = 1, ZIndex = 0, Image = "rbxassetid://6014261993",
 		ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.76, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450),
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760 + 68, 560 + 68) })
+		-- ⭐ offset down + heavier below, so it casts instead of glowing (2026-09-21). 19 above / 49
+		-- below means the centre sits (49-19)/2 + 8 = 23px lower than the card's.
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 23), Size = UDim2.fromOffset(760 + 68, 560 + 68) })
 	local card = new("Frame", { Parent = root, BackgroundColor3 = DARK, ZIndex = 1, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560), ClipsDescendants = true, Active = true })
 	corner(card, 4)
