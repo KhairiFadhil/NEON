@@ -1442,7 +1442,10 @@ function Tab:Button(cfg)
 	btn.MouseEnter:Connect(function() tween(btn, { BackgroundTransparency = danger and 0.8 or 0.12 }) end)
 	btn.MouseLeave:Connect(function() tween(btn, { BackgroundTransparency = restT }) end)
 	btn.MouseButton1Click:Connect(function()
-		win:Notify(cfg.Title)
+		-- ⭐ NO AUTOMATIC TOAST (2026-09-22, user "jangan pakai toast yg dari lib"). Every button used to
+		-- fire the library toast with its own title on click, which says nothing the user did not just do and
+		-- pre-empts the caller's own message. Callers report their real outcome themselves — in this project
+		-- through the Roblox notification (StarterGui SetCore SendNotification), not this library's.
 		if cfg.Callback then task.spawn(cfg.Callback, box and box.Text or nil, pick and pick:Get() or nil) end
 	end)
 	return { Instance = btn, Input = box, Pick = pick,
