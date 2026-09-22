@@ -247,7 +247,7 @@ function NEON:CreateWindow(cfg)
 
 	-- soft drop shadow behind the panel (9-slice); low intensity for a gentle blur
 	local shadow = new("ImageLabel", { Parent = gui, BackgroundTransparency = 1, ZIndex = 0,
-		Image = "rbxassetid://6014261993", ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.76,
+		Image = "rbxassetid://6014261993", ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.84,
 		ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450) })
 
 	-- MOVE + RESIZE handles float from the ScreenGui, NOT the panel — the panel's vertical
@@ -281,7 +281,7 @@ function NEON:CreateWindow(cfg)
 	-- ⭐ DIRECTIONAL, not a halo (2026-09-21). This spread SH=34 evenly on all four sides with no
 	-- vertical offset, which is what made it read as a glow rather than a cast shadow. Same shape as the
 	-- dropdown menu's fix, scaled to the panel: less bleed above than below, plus a small drop.
-	local SH, SH_TOP, SH_BOT, SH_DROP = 34, 19, 49, 8
+	local SH, SH_TOP, SH_BOT, SH_DROP = 20, 12, 30, 6
 	local uiConn = RunService.Heartbeat:Connect(function()
 		if not panel.Parent then return end
 		local px, py = panel.Position.X.Offset, panel.Position.Y.Offset
@@ -957,7 +957,7 @@ function Tab:Dropdown(cfg)
 	-- is symmetric, so the bias has to come from the geometry: less bleed above than below.
 	-- It is a SIBLING of the CanvasGroup on purpose. A CanvasGroup renders into a buffer clipped to its
 	-- own rect, so a shadow parented inside one has its bleed cut off at the edge.
-	local SH_X, SH_TOP, SH_BOT, SH_DROP = 18, 10, 26, 4
+	local SH_X, SH_TOP, SH_BOT, SH_DROP = 11, 7, 17, 3
 	local shadow = new("ImageLabel", { Parent = win._gui, Visible = false, ZIndex = 59, BackgroundTransparency = 1,
 		Image = "rbxassetid://6014261993", ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 1,
 		ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450) })
@@ -1098,7 +1098,7 @@ function Tab:Dropdown(cfg)
 		root.Visible = true; shadow.Visible = true
 		layout(); positionAt(); task.defer(positionAt)  -- one deferred pass so layout has settled
 		tween(root, { GroupTransparency = 0 }, T)
-		tween(shadow, { ImageTransparency = 0.62 }, T)
+		tween(shadow, { ImageTransparency = 0.74 }, T)
 		tween(scl, { Scale = vs }, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
 		tween(arrow, { Rotation = 180 }, T); tween(btn, { BackgroundTransparency = 0.82 }, T)
 		-- follow the button/panel through SIGNALS rather than a RenderStepped poll
@@ -1331,10 +1331,10 @@ function NEON:CreateKeyPage(cfg)
 	local uiscale = new("UIScale", { Parent = root, Scale = fit * 0.9 })
 	-- soft drop shadow — same 9-slice, margin (34/side) and intensity as the menu
 	new("ImageLabel", { Parent = root, BackgroundTransparency = 1, ZIndex = 0, Image = "rbxassetid://6014261993",
-		ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.76, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450),
+		ImageColor3 = Color3.new(0, 0, 0), ImageTransparency = 0.84, ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(49, 49, 450, 450),
 		-- ⭐ offset down + heavier below, so it casts instead of glowing (2026-09-21). 19 above / 49
 		-- below means the centre sits (49-19)/2 + 8 = 23px lower than the card's.
-		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 23), Size = UDim2.fromOffset(760 + 68, 560 + 68) })
+		AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 15), Size = UDim2.fromOffset(760 + 40, 560 + 42) })
 	local card = new("Frame", { Parent = root, BackgroundColor3 = DARK, ZIndex = 1, AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 560), ClipsDescendants = true, Active = true })
 	corner(card, 4)
