@@ -1379,6 +1379,9 @@ function Tab:Button(cfg)
 			BorderSizePixel = 0, Size = UDim2.fromOffset(cfg.InputWidth or 190, 42), Text = "",
 			PlaceholderText = cfg.Placeholder, TextColor3 = INK, PlaceholderColor3 = INK,
 			FontFace = bodyFont(), TextSize = 12, ClearTextOnFocus = false,
+			-- ⭐ clip and truncate: a long value (a webhook URL, a path) otherwise runs straight out of the
+			-- box, which is a bug the caller then has to patch from outside.
+			ClipsDescendants = true, TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left })
 		corner(box, 6); pad(box, 0, 12, 0, 12)
 	end
