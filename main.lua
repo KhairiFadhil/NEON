@@ -247,22 +247,36 @@ local function makeIcon(parent, spec, size, order, colour)
 	return new("ImageLabel", p)
 end
 
-local function makeRow(page)
+-- ⭐ ROWS ARE CARDS (2026-09-22, user mockup). Each row is its own rounded card with a gap
+-- between, and an optional large icon TILE on the left, centred against the whole card. The old 1px
+-- top divider is gone: the gap does that job now and keeping both read as a seam.
+-- Takes cfg because the tile is a sibling of the text column — a tile centred against the CARD cannot
+-- live inside the title's wrapping row, which is where the inline icon used to go.
+local function makeRow(page, cfg)
+	cfg = cfg or {}
 	local row = new("Frame", { Parent = page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	-- Top border: sibling of the content frame, NOT inside the horizontal layout —
-	-- otherwise it counts as a full-width layout item and shoves the controls off-edge.
-	new("Frame", { Parent = row, Name = "border", BackgroundColor3 = INK, BackgroundTransparency = 0.78,
-		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
-	local content = new("Frame", { Parent = row, BackgroundTransparency = 1,
+	pad(row, 0, 24, 10, 24) -- side gutter + the gap that replaces the divider
+	local card = new("Frame", { Parent = row, BackgroundColor3 = INK, BackgroundTransparency = 0.93,
+		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	corner(card, 10)
+	local content = new("Frame", { Parent = card, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(content, 17, 24, 17, 24)
-	hlist(content, 22).VerticalAlignment = Enum.VerticalAlignment.Center
+	pad(content, 14, 16, 14, 16)
+	hlist(content, 16).VerticalAlignment = Enum.VerticalAlignment.Center
+
+	if iconProps(cfg.Icon) then
+		local tile = new("Frame", { Parent = content, LayoutOrder = 0, BackgroundColor3 = INK,
+			BackgroundTransparency = 0.88, BorderSizePixel = 0, Size = UDim2.fromOffset(52, 52) })
+		corner(tile, 10)
+		local ic = makeIcon(tile, cfg.Icon, 24, 1)
+		if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
+	end
 
 	local left = new("Frame", { Parent = content, BackgroundTransparency = 1, LayoutOrder = 1,
 		AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(0, 0, 0, 0) })
 	new("UIFlexItem", { Parent = left, FlexMode = Enum.UIFlexMode.Fill })
-	vlist(left, 7)
+	vlist(left, 5)
 
 	local top = new("Frame", { Parent = left, BackgroundTransparency = 1, LayoutOrder = 1,
 		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.new(0, 0, 0, 0) })
@@ -273,10 +287,7 @@ local function makeRow(page)
 end
 
 local function addLabelAndBadge(top, cfg)
-	-- ⭐ one insertion point covers EVERY row element (Toggle/Slider/Dropdown/Keybind/Button/...),
-	-- because they all build their label through here. LayoutOrder 0 puts it left of the title and
-	-- inside the same wrapping hlist, so it wraps with the text instead of floating.
-	makeIcon(top, cfg.Icon, 18, 0)
+	-- ⭐ the icon now lives in makeRow, as a TILE centred against the whole card (2026-09-22).
 	if cfg.Feature then
 		local box = new("TextLabel", { Parent = top, LayoutOrder = 1, BackgroundColor3 = INK,
 			AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0),
@@ -496,10 +507,42 @@ function NEON:CreateWindow(cfg)
 	hlist(tabsRow, 0)
 	win._tabBar = tabsRow
 
-	-- No page header (2026-09-21): the "CATEGORY - <tab>" line, the 80px title repeating the tab
-	-- name, the active-toggle counter and the accent bar all sat here. They restated the highlighted
-	-- tab button and ate ~110px above the first control. _catLbl/_bigTitle/_countLbl are therefore
-	-- never set, and their three writers below are nil-safe rather than pointing at hidden labels.
+	-- ⭐ PAGE HEADER, OPT-IN PER TAB (2026-09-22, user "header tetep ada untuk config"). Removed
+	-- wholesale on 2026-09-21 because it restated the highlighted tab button on every page and ate
+	-- ~110px above the first control — which still holds for most tabs. Config wants it as a title
+	-- block, so it is back as CreateTab{ Header = true } and hidden everywhere else. The three label
+	-- writers stay nil-safe, so a build that never opts in still runs.
+	local header = new("Frame", { Parent = body, LayoutOrder = 2, BackgroundTransparency = 1, Visible = false,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	pad(header, 8, 24, 6, 24)
+	local hrow = hlist(header, 12); hrow.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	local hL = new("Frame", { Parent = header, LayoutOrder = 1, BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(0, 0, 0, 0) })
+	new("UIFlexItem", { Parent = hL, FlexMode = Enum.UIFlexMode.Fill })
+	vlist(hL, 2)
+	local cat = label(hL, "CATEGORY — EDITING", 10, Enum.FontWeight.Medium, INK)
+	cat.LayoutOrder = 1; cat.TextTransparency = 0.47
+	-- Crop the Anton em-box's empty bottom (descender space): top-align + a box shorter than the
+	-- font size so the caps hug the box, with no wasted vertical padding under the title.
+	local bigTitle = new("TextLabel", { Parent = hL, LayoutOrder = 2, BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 0, 66), Text = "",
+		TextColor3 = INK, FontFace = displayFont(), TextSize = 80, ClipsDescendants = true,
+		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top })
+	local hR = new("Frame", { Parent = header, LayoutOrder = 2, BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0) })
+	local hRl = vlist(hR, 5); hRl.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	local countLbl = new("TextLabel", { Parent = hR, LayoutOrder = 1, BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0,0), Text = "✳ 0 ACTIVE",
+		TextColor3 = INK, FontFace = displayFont(), TextSize = 15, TextXAlignment = Enum.TextXAlignment.Right })
+	local sub2 = label(hR, "TOGGLES ENABLED", 9.5, Enum.FontWeight.Medium, INK)
+	sub2.LayoutOrder = 2; sub2.TextTransparency = 0.53; sub2.TextXAlignment = Enum.TextXAlignment.Right
+	win._catLbl, win._bigTitle, win._countLbl, win._header = cat, bigTitle, countLbl, header
+	-- accent bar (indented under the title); hidden with the header it belongs to
+	local barWrap = new("Frame", { Parent = body, LayoutOrder = 3, BackgroundTransparency = 1, Visible = false,
+		Size = UDim2.new(1, 0, 0, 8) })
+	new("Frame", { Parent = barWrap, BackgroundColor3 = INK, BorderSizePixel = 0,
+		Size = UDim2.new(0, 200, 0, 2.5), Position = UDim2.fromOffset(24, 2) })
+	win._headerBar = barWrap
 	-- LIST (scrolling; holds one page per tab)
 	local scroll = new("ScrollingFrame", { Parent = body, LayoutOrder = 4, BackgroundTransparency = 1,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0),
@@ -671,6 +714,9 @@ function NEON:_selectTab(tab)
 		tb._page.Visible = (tb == tab)
 		if tb._refresh then tb._refresh() end
 	end
+	local wantHeader = tab._header == true
+	if self._header then self._header.Visible = wantHeader end
+	if self._headerBar then self._headerBar.Visible = wantHeader end
 	if self._bigTitle then self._bigTitle.Text = string.upper(tab._title) end
 	if self._catLbl then self._catLbl.Text = "CATEGORY — " .. string.upper(tab._title) end
 	if self._fitScroll then task.defer(self._fitScroll) end
@@ -762,7 +808,8 @@ function NEON:CreateTab(cfg)
 			TextSize = 12 })
 	end
 
-	local tab = setmetatable({ _win = win, _page = page, _btn = btn, _lbl = lbl, _title = cfg.Title or "TAB" }, Tab)
+	local tab = setmetatable({ _win = win, _page = page, _btn = btn, _lbl = lbl, _title = cfg.Title or "TAB",
+		_header = cfg.Header == true }, Tab)
 	-- Single source of truth for the tab colour so hover + select never fight each other.
 	-- Cancel the in-flight tween first, else a hover tween can override the select colour.
 	local function refresh()
@@ -792,7 +839,7 @@ NEON.Tab = NEON.CreateTab
 function Tab:Toggle(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local id = cfg.Title
 	local on = cfg.Default and true or false
@@ -821,7 +868,7 @@ end
 function Tab:Checkbox(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local on = cfg.Default and true or false
 	local box = new("TextButton", { Parent = ctrl, Text = "", AutoButtonColor = false, BorderSizePixel = 0,
@@ -843,7 +890,7 @@ end
 function Tab:Slider(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local min, max, step = cfg.Min or 0, cfg.Max or 100, cfg.Step or 1
 	local value = math.clamp(cfg.Default or min, min, max)
@@ -888,7 +935,7 @@ end
 function Tab:Input(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local box = new("TextBox", { Parent = ctrl, Size = UDim2.fromOffset(210, 36), BackgroundTransparency = 1,
 		Text = string.upper(tostring(cfg.Default or "")), PlaceholderText = string.upper(cfg.Placeholder or ""),
@@ -907,7 +954,7 @@ end
 function Tab:Keybind(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local key = tostring(cfg.Default or "NONE")
 	local btn = new("TextButton", { Parent = ctrl, AutoButtonColor = false, BackgroundTransparency = 1,
@@ -936,7 +983,7 @@ end
 function Tab:Segmented(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local value = cfg.Default or (cfg.Options and cfg.Options[1])
 	local group = new("Frame", { Parent = ctrl, BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.X,
@@ -1006,7 +1053,7 @@ end
 function Tab:Dropdown(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local multi = cfg.Multi or false                          -- checkbox multi-select variant
 	local value = (not multi) and (cfg.Default or (cfg.Options and cfg.Options[1])) or nil
@@ -1267,7 +1314,7 @@ end
 function Tab:Colorpicker(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local swatches = cfg.Swatches or { "A8D8EA", "EAA8D8", "C9A8EA", "A8EAB6", "EAD8A8" }
 	local value = cfg.Default or swatches[1]
@@ -1301,7 +1348,7 @@ function Tab:Colorpicker(cfg)
 end
 
 function Tab:Button(cfg)
-	local _, left, top, ctrl = makeRow(self._page)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local btn = new("TextButton", { Parent = ctrl, AutoButtonColor = false, BackgroundColor3 = INK, BorderSizePixel = 0,
 		AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 42), Text = "" })
