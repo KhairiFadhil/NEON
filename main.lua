@@ -1069,11 +1069,11 @@ end
 -- Search = true adds a filter box; it also turns itself on once the list is long enough to need one.
 -- Rows are built ONCE here and never rebuilt - filtering and selection only touch .Visible / a fill's
 -- .Visible. (WindUI rebuilds every row on each :Select(); that is the trap this avoids.)
-function Tab:Dropdown(cfg)
-	local win = self._win
-	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page, cfg)
-	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+-- ⭐ THE CONTROL, SPLIT FROM THE ROW (2026-09-22) so Tab:Button can host one beside its button.
+-- Of this function's 260 lines exactly four built the row; the rest — popup, search, option rows,
+-- outside-click, positioning — is control. A second copy inside Button would have duplicated all of it.
+-- `ctrl` is the container to build into; the body touches no `self`, which is what makes this mechanical.
+local function dropdownControl(win, ctrl, cfg)
 	local multi = cfg.Multi or false                          -- checkbox multi-select variant
 	local value = (not multi) and (cfg.Default or (cfg.Options and cfg.Options[1])) or nil
 	local selSet, cbFills = {}, {}
@@ -1329,6 +1329,15 @@ function Tab:Dropdown(cfg)
 	return api
 end
 
+-- A dropdown as its own row.
+function Tab:Dropdown(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
+	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+	return dropdownControl(win, ctrl, cfg)
+end
+
 -- Colour picker: pick from preset swatches. Override the set with Swatches = { "RRGGBB", ... }.
 function Tab:Colorpicker(cfg)
 	local win = self._win
@@ -1371,9 +1380,12 @@ end
 --   ButtonIcon  a Lucide name drawn inside the button, left of the label
 --   Danger      red fill + red text, for destructive actions
 --   Placeholder adds a TextBox beside the button; its text is passed to Callback
+--   Options     adds a Dropdown beside the button; the selection is passed to Callback
+-- Callback(inputText, selectedOption) — each nil unless the matching option was given.
 -- ⭐ This used to render "EXECUTE →" for every button in the library, so a row titled "Save Config
 -- to Workspace" got a button labelled EXECUTE with an arrow (2026-09-22, user "execute jelek banget").
 function Tab:Button(cfg)
+	local win = self._win
 	local _, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
@@ -1390,6 +1402,19 @@ function Tab:Button(cfg)
 			ClipsDescendants = true, TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left })
 		corner(box, 6); pad(box, 0, 12, 0, 12)
+	end
+
+	-- ⭐ optional dropdown to the LEFT of the button, sharing the control row. It reuses the same
+	-- dropdownControl the Dropdown element uses, so popup, search and outside-click behave identically
+	-- instead of being reimplemented here.
+	local pick
+	if type(cfg.Options) == "table" and #cfg.Options > 0 then
+		local holder = new("Frame", { Parent = ctrl, LayoutOrder = 0, BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
+		pick = dropdownControl(win, holder, {
+			Options = cfg.Options, Default = cfg.Default, Placeholder = cfg.OptionPlaceholder,
+			MaxHeight = cfg.MaxHeight,
+		})
 	end
 
 	local danger = cfg.Danger == true
@@ -1417,10 +1442,11 @@ function Tab:Button(cfg)
 	btn.MouseEnter:Connect(function() tween(btn, { BackgroundTransparency = danger and 0.8 or 0.12 }) end)
 	btn.MouseLeave:Connect(function() tween(btn, { BackgroundTransparency = restT }) end)
 	btn.MouseButton1Click:Connect(function()
-		self._win:Notify(cfg.Title)
-		if cfg.Callback then task.spawn(cfg.Callback, box and box.Text or nil) end
+		win:Notify(cfg.Title)
+		if cfg.Callback then task.spawn(cfg.Callback, box and box.Text or nil, pick and pick:Get() or nil) end
 	end)
-	return { Instance = btn, Input = box, GetText = function() return box and box.Text or "" end }
+	return { Instance = btn, Input = box, Pick = pick,
+		GetText = function() return box and box.Text or "" end }
 end
 
 -- Stats strip: a row of read-only cells (caption / value / sub-caption) for the top of a tab.
