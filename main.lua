@@ -157,6 +157,55 @@ end
 
 ------------------------------------------------------------------- ELEMENTS
 -- Shared row: left (label/badge/desc) grows, control sits right.
+-- ⭐ LUCIDE ICONS (lucide.dev, via latte-soft/lucide-roblox; icon names are Lucide 0.363, so
+-- `home` rather than the later `house`). Entries are SPRITESHEET cutouts, not one asset per icon:
+--     name = { assetId, rectX, rectY }   with a fixed 48x48 rect.
+-- A curated 45 rather than all 1395: the full 48px set embeds to ~49KB against a library that is
+-- 88KB, and runtime-fetching the 157KB bundle would add a second network dependency with its own
+-- failure mode. Anything outside this set still works - pass a raw "rbxassetid://..." instead.
+local LUCIDE = {
+	home={16898613509,820,147},car={16898612819,918,147},sprout={16898613777,918,306},
+	fish={16898613353,869,147},shield={16898613777,869,0},settings={16898613777,771,257},
+	coins={16898613044,869,612},banknote={16898612629,453,967},zap={16898613869,918,906},
+	timer={16898613869,918,0},bell={16898612819,820,257},search={16898613699,918,857},
+	play={16898613699,918,257},square={16898613777,869,710},["refresh-cw"]={16898613699,404,869},
+	bot={16898612819,869,98},crosshair={16898613044,453,869},swords={16898613777,967,759},
+	lock={16898613509,918,857},unlock={16898613869,771,710},gauge={16898613353,771,955},
+	anchor={16898612629,306,869},waves={16898613869,820,808},wheat={16898613869,453,967},
+	truck={16898613869,771,196},bike={16898612819,771,563},package={16898613613,918,196},
+	hammer={16898613509,306,820},["trash-2"]={16898613869,257,918},download={16898613044,820,906},
+	upload={16898613869,612,869},eye={16898613353,771,563},["eye-off"]={16898613353,820,514},
+	check={16898612819,710,869},x={16898613869,869,906},["chevron-down"]={16898612819,196,918},
+	plus={16898613699,257,918},minus={16898613613,771,196},info={16898613509,612,869},
+	star={16898613777,967,147},key={16898613509,869,404},user={16898613869,661,869},users={16898613869,967,98},
+	clock={16898613044,771,661},activity={16898612629,514,771}
+}
+
+-- Accepts a Lucide name, a "rbxassetid://123" string, or a bare number. Returns nil for anything
+-- unrecognised so a typo drops the icon instead of rendering a broken-image square.
+local function iconProps(spec)
+	if type(spec) == "number" then return { Image = "rbxassetid://" .. spec } end
+	if type(spec) ~= "string" or spec == "" then return nil end
+	local e = LUCIDE[spec]
+	if e then
+		return { Image = "rbxassetid://" .. e[1], ImageRectSize = Vector2.new(48, 48),
+			ImageRectOffset = Vector2.new(e[2], e[3]) }
+	end
+	if string.match(spec, "^rbxassetid://%d+$") then return { Image = spec } end
+	if string.match(spec, "^%d+$") then return { Image = "rbxassetid://" .. spec } end
+	return nil
+end
+
+local function makeIcon(parent, spec, size, order, colour)
+	local p = iconProps(spec)
+	if not p then return nil end
+	p.Parent, p.BackgroundTransparency = parent, 1
+	p.Size = UDim2.fromOffset(size, size)
+	p.ImageColor3 = colour or INK
+	p.LayoutOrder = order or 0
+	return new("ImageLabel", p)
+end
+
 local function makeRow(page)
 	local row = new("Frame", { Parent = page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
@@ -183,6 +232,10 @@ local function makeRow(page)
 end
 
 local function addLabelAndBadge(top, cfg)
+	-- ⭐ one insertion point covers EVERY row element (Toggle/Slider/Dropdown/Keybind/Button/...),
+	-- because they all build their label through here. LayoutOrder 0 puts it left of the title and
+	-- inside the same wrapping hlist, so it wraps with the text instead of floating.
+	makeIcon(top, cfg.Icon, 18, 0)
 	if cfg.Feature then
 		local box = new("TextLabel", { Parent = top, LayoutOrder = 1, BackgroundColor3 = INK,
 			AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0),
@@ -651,9 +704,24 @@ function NEON:CreateTab(cfg)
 	-- visible divider between tabs so 5 buttons read as 5 buttons (not one cyan bar)
 	new("Frame", { Parent = btn, BackgroundColor3 = INK, BackgroundTransparency = 0.6, BorderSizePixel = 0,
 		Size = UDim2.new(0, 1, 1, 0), Position = UDim2.new(1, -1, 0, 0) })
-	local lbl = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
-		Text = string.upper(cfg.Title or "TAB"), TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.ExtraBold),
-		TextSize = 12 })
+	-- ⭐ optional icon left of the tab title. With one, the pair is centred inside an auto-width
+	-- row; without one the label keeps filling the button exactly as before.
+	local lbl, tabIcon
+	if iconProps(cfg.Icon) then
+		local wrap = new("Frame", { Parent = btn, BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.X, AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0, 0, 1, 0) })
+		hlist(wrap, 7).VerticalAlignment = Enum.VerticalAlignment.Center
+		tabIcon = makeIcon(wrap, cfg.Icon, 15, 1)
+		lbl = new("TextLabel", { Parent = wrap, LayoutOrder = 2, BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.new(0, 0, 1, 0),
+			Text = string.upper(cfg.Title or "TAB"), TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.ExtraBold),
+			TextSize = 12 })
+	else
+		lbl = new("TextLabel", { Parent = btn, BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1),
+			Text = string.upper(cfg.Title or "TAB"), TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.ExtraBold),
+			TextSize = 12 })
+	end
 
 	local tab = setmetatable({ _win = win, _page = page, _btn = btn, _lbl = lbl, _title = cfg.Title or "TAB" }, Tab)
 	-- Single source of truth for the tab colour so hover + select never fight each other.
@@ -665,6 +733,7 @@ function NEON:CreateTab(cfg)
 		tab._ctween = TweenService:Create(btn, TWEEN, { BackgroundColor3 = target })
 		tab._ctween:Play()
 		lbl.TextColor3 = active and ACCENT or INK
+		if tabIcon then tabIcon.ImageColor3 = active and ACCENT or INK end -- follow the label
 	end
 	tab._refresh = refresh
 	btn.MouseButton1Click:Connect(function() win:_selectTab(tab) end)
