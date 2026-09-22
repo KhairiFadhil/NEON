@@ -257,7 +257,7 @@ local function makeRow(page, cfg)
 	cfg = cfg or {}
 	local row = new("Frame", { Parent = page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(row, 0, 24, 10, 24) -- side gutter + the gap that replaces the divider
+	pad(row, 0, 24, 0, 24) -- side gutter only; the page's list gap spaces the cards
 	local card = new("Frame", { Parent = row, BackgroundColor3 = INK, BackgroundTransparency = 0.93,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	corner(card, 10)
@@ -790,8 +790,13 @@ function NEON:CreateTab(cfg)
 	-- straight onto a row sat flush against the tab bar — which is Vehicle and Protect exactly, the only
 	-- two that start with a Toggle. Fixing it here covers every tab whatever it starts with, and leaves
 	-- the spacing between cards alone.
+	-- ⭐ THE PAGE OWNS THE WHOLE VERTICAL RHYTHM (2026-09-22). Adding page padding on top of elements
+	-- that already had their own gave three different leading gaps depending on what opened the tab:
+	--   page 12 + Section 15 = 27   page 12 + Stats 14 = 26   page 12 + row 0 = 12
+	-- Now nothing else contributes vertical space: 12 above the first element, 10 between every pair,
+	-- 12 below the last. If you add a top-level element, give it NO vertical padding.
 	pad(page, 12, 0, 12, 0)
-	vlist(page, 0)
+	vlist(page, 10)
 	local btn = new("TextButton", { Parent = win._tabBar, BackgroundColor3 = ACCENT, BorderSizePixel = 0,
 		Text = "", Size = UDim2.new(1, 0, 1, 0), AutoButtonColor = false })
 	-- visible divider between tabs so 5 buttons read as 5 buttons (not one cyan bar)
@@ -1413,7 +1418,7 @@ function Tab:Stats(cfg)
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	-- ⭐ equal above and below (2026-09-21, user "padding atas dan bawah ga sama"). 16/6 was copied
 	-- from Section, where the header leans into the rows under it; this is a card and wants symmetry.
-	pad(outer, 14, 24, 14, 24)
+	pad(outer, 0, 24, 0, 24) -- vertical rhythm belongs to the page (see CreateTab)
 	local card = new("Frame", { Parent = outer, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	corner(card, 8); stroke(card, 1, INK, 0.82)
@@ -1463,7 +1468,7 @@ function Tab:Section(cfg)
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
 	local inner = new("Frame", { Parent = sec, LayoutOrder = 2, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(inner, 15, 24, 7, 24)
+	pad(inner, 4, 24, 4, 24) -- symmetric + small; the page supplies the gap around it
 	hlist(inner, 9).VerticalAlignment = Enum.VerticalAlignment.Center
 	new("Frame", { Parent = inner, LayoutOrder = 1, BackgroundColor3 = INK, BorderSizePixel = 0, Size = UDim2.fromOffset(16, 2.5) })
 	local l = label(inner, string.upper(title), 11, Enum.FontWeight.ExtraBold, INK)
