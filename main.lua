@@ -896,8 +896,10 @@ function Tab:Toggle(cfg)
 	-- it unchanged -- no new control types, no second layout engine, and a sub-row looks exactly like a
 	-- top-level one because it IS one. That reuse is the whole reason this is small.
 	if type(cfg.Settings) == "function" then
-		-- the row held only the card; give it a column so the panel can sit UNDER that card
-		vlist(row, 6)
+		-- ⭐ NO GAP (user "sub settingnya masuk ke dalam kaya container yg masih nyatu dengan opsinya"):
+		-- the panel must read as the SAME container continuing under the header, not a separate card
+		-- floating below it. A hairline at the top of the panel does the separating instead.
+		vlist(row, 0)
 		-- ⭐ ITS OWN SHADE (user "di kasih shade yg agak beda dong"). The card sits at 0.93; the panel is
 		-- LIGHTER at 0.965 so it reads as a surface attached under the header rather than a second card
 		-- of the same weight. A CanvasGroup, because GroupTransparency fades the whole panel as one --
@@ -906,15 +908,22 @@ function Tab:Toggle(cfg)
 			BackgroundTransparency = 0.965, BorderSizePixel = 0, GroupTransparency = 1,
 			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
 		corner(wrap, 10)
-		local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
+		local inner = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
 			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-		pad(panel, 6, 10, 6, 10)
-		-- ⭐ TWO COLUMNS like the mockup. A grid, not a list: the cell width is what keeps both columns
-		-- equal whatever the panel is resized to, and AutomaticSize.Y still works because a UIGridLayout
-		-- reports AbsoluteContentSize like any other layout.
-		new("UIGridLayout", { Parent = panel, CellSize = UDim2.new(0.5, -6, 0, 58),
-			CellPadding = UDim2.fromOffset(12, 4), SortOrder = Enum.SortOrder.LayoutOrder,
-			FillDirectionMaxCells = 2 })
+		vlist(inner, 0)
+		-- the hairline that separates the header from the panel, since they now share one surface
+		new("Frame", { Parent = inner, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.88,
+			BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
+		local panel = new("Frame", { Parent = inner, LayoutOrder = 2, BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+		pad(panel, 8, 14, 8, 14)
+		-- ⭐ TWO PER ROW, laid out ACROSS (user "sub settingnya di buat row jangan column kaya di gambar").
+		-- The width arithmetic is the whole trick: 2*(0.5W - 6) + 12 padding == W EXACTLY, and a grid that
+		-- fits its row to the pixel wraps on any rounding -- which is what turned this into one cell per
+		-- line, i.e. the column the user is objecting to. -14 leaves 16px of slack so two always fit.
+		new("UIGridLayout", { Parent = panel, CellSize = UDim2.new(0.5, -14, 0, 56),
+			CellPadding = UDim2.fromOffset(12, 6), SortOrder = Enum.SortOrder.LayoutOrder,
+			FillDirection = Enum.FillDirection.Horizontal, FillDirectionMaxCells = 2 })
 		FLAT[panel] = true -- rows on this page build without their own card; the panel is the surface
 		pcall(cfg.Settings, setmetatable({ _win = win, _page = panel }, Tab))
 		-- ⭐ ctrl HAS NO LAYOUT until now, because a Toggle only ever put ONE child in it. Adding the
