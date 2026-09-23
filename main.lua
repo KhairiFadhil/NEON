@@ -958,12 +958,24 @@ function Tab:ToggleGroup(cfg)
 	local open = false
 	exp.MouseButton1Click:Connect(function()
 		open = not open
-		tween(wrap, { Size = UDim2.new(1, -20, 0, open and panel.AbsoluteSize.Y or 0) })
 		if ic then tween(ic, { Rotation = open and 180 or 0 }) end
-	end)
-	-- keep an OPEN panel's height honest when its content reflows (a dropdown opening, a window resize).
-	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-		if open then wrap.Size = UDim2.new(1, -20, 0, panel.AbsoluteSize.Y) end
+		if open then
+			-- animate to a MEASURED height, then hand the wrap over to AutomaticSize so it tracks the
+			-- content from there. ⭐ The snapshot alone was the bug (user "bawahnya kok begini"): the height
+			-- was frozen at whatever the panel measured on the click, so a row that later shrank -- a
+			-- dropdown closing, a re-layout -- left the wrap tall and a dead strip under the last row.
+			-- AutomaticSize cannot go stale, and a listener patching the size after the fact cannot beat it.
+			wrap.AutomaticSize = Enum.AutomaticSize.None
+			local t = tween(wrap, { Size = UDim2.new(1, -20, 0, panel.AbsoluteSize.Y) })
+			t.Completed:Connect(function()
+				if open then wrap.AutomaticSize = Enum.AutomaticSize.Y end
+			end)
+		else
+			-- pin the height AutomaticSize was holding before animating it away, or the tween starts from 0
+			wrap.AutomaticSize = Enum.AutomaticSize.None
+			wrap.Size = UDim2.new(1, -20, 0, wrap.AbsoluteSize.Y)
+			tween(wrap, { Size = UDim2.new(1, -20, 0, 0) })
+		end
 	end)
 
 	bindFlag(win, cfg, function() return api:Get() end, function(v) api:Set(v) end)
