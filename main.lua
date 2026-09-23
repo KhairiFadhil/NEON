@@ -941,9 +941,13 @@ function Tab:ToggleGroup(cfg)
 	corner(wrap, 8)
 	local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	-- ⭐ side padding trimmed 12 -> 6 (user "padding kanan kiri kegedean dikit"). Three insets stack here:
-	-- the wrap's 10 off the card, this 6, and the flat row's own 14 = 30 a side, down from 44.
-	pad(panel, 4, 6, 4, 16) -- the extra bottom is the margin the card no longer adds
+	-- ⭐ ARGUMENT ORDER IS (top, RIGHT, bottom, LEFT) -- pad(parent, t, r, b, l). This read 4, 6, 4, 16,
+	-- which I wrote meaning "16 of bottom margin" but which actually set LEFT to 16 against RIGHT's 6:
+	-- lopsided sides, and a bottom of only 4, so the last row sat hard against the shaded edge
+	-- (user "pas di bawah ga kewrap penuh"). MEASURED on the live panel: padTop=4 padBottom=4, which is
+	-- what gave it away. Symmetric now, with a real bottom margin. Sides stay modest: the wrap's 10 off
+	-- the card, plus this 8, plus the flat row's own 14 = 32 a side.
+	pad(panel, 6, 8, 10, 8)
 	vlist(panel, 2) -- a LIST of full-width rows; a grid here halved every control's width
 	FLAT[panel] = true -- rows build without their own card; the panel is the surface
 	if type(cfg.Settings) == "function" then
