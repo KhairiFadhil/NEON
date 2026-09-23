@@ -894,6 +894,11 @@ function Tab:Toggle(cfg)
 			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
 		vlist(panel, 8)
 		pcall(cfg.Settings, setmetatable({ _win = win, _page = panel }, Tab))
+		-- ⭐ ctrl HAS NO LAYOUT until now, because a Toggle only ever put ONE child in it. Adding the
+		-- expander without one parked both buttons at (0,0): MEASURED live, track and chevron both at
+		-- [734,385], the chevron drawn underneath the toggle and therefore invisible. Only added on this
+		-- path, so every toggle without Settings keeps the exact single-child geometry it had.
+		hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
 		local exp = new("TextButton", { Parent = ctrl, LayoutOrder = 9, Text = "", AutoButtonColor = false,
 			BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) })
 		local ic = makeIcon(exp, "chevron-down", 18, 1)
