@@ -1391,6 +1391,37 @@ function Tab:Button(cfg)
 	addLabelAndBadge(top, cfg); local descLbl = addDesc(left, cfg)
 	hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
 
+	-- ⭐ optional read-only CELLS to the LEFT of the button (mockup: "Players 6/28 | Uptime 0h 55m"
+	-- sitting beside Refresh). Same visual language as Tab:Stats — caption over value, hairline
+	-- dividers, rounded outline — but compact and INSIDE the row, so one row can carry live numbers
+	-- without a separate full-width strip above it.
+	-- cfg.Cells = { { Title = "Players", Value = "6/28" }, ... }; update later with row:SetCells{...}.
+	local cellLabels
+	if type(cfg.Cells) == "table" and #cfg.Cells > 0 then
+		cellLabels = {}
+		local box = new("Frame", { Parent = ctrl, LayoutOrder = 0, BackgroundTransparency = 1,
+			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 46) })
+		corner(box, 8); stroke(box, 1, INK, 0.82)
+		hlist(box, 0)
+		for i, it in ipairs(cfg.Cells) do
+			if i > 1 then
+				new("Frame", { Parent = box, LayoutOrder = i * 2 - 1, BackgroundColor3 = INK,
+					BackgroundTransparency = 0.86, BorderSizePixel = 0, Size = UDim2.fromOffset(1, 28) })
+			end
+			local cell = new("Frame", { Parent = box, LayoutOrder = i * 2, BackgroundTransparency = 1,
+				AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 46) })
+			pad(cell, 14, 6, 14, 6)
+			vlist(cell, 1)
+			-- label() is already AutomaticSize.XY, so these size to their own text: no wrapping-to-zero
+			-- of the kind addDesc warns about, and the box grows to fit whatever the values become.
+			local cap = label(cell, string.upper(tostring(it.Title or "")), 9.5, Enum.FontWeight.Medium, INK)
+			cap.LayoutOrder = 1; cap.TextTransparency = 0.45
+			local val = label(cell, tostring(it.Value or ""), 13, Enum.FontWeight.Bold, INK)
+			val.LayoutOrder = 2
+			cellLabels[i] = val
+		end
+	end
+
 	-- optional text box to the LEFT of the button (mockup: "Config name..." beside Save)
 	local box
 	if cfg.Placeholder then
@@ -1453,6 +1484,14 @@ function Tab:Button(cfg)
 		-- live sub-caption: lets ONE row carry changing values (players, uptime) instead of needing a
 		-- separate Stats strip beside it. Upper-cased to match addDesc, which builds it upper-cased.
 		SetDesc = function(_, t) if descLbl then descLbl.Text = string.upper(tostring(t or "")) end end,
+		-- update the inline cells' VALUES in place (captions are fixed at build)
+		SetCells = function(_, values)
+			if not cellLabels then return end
+			for i, v in ipairs(values or {}) do
+				local l = cellLabels[i]
+				if l then l.Text = tostring(v) end
+			end
+		end,
 		GetText = function() return box and box.Text or "" end }
 end
 
