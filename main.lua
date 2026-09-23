@@ -1035,6 +1035,61 @@ function Tab:Slider(cfg)
 	return api
 end
 
+-- ⭐ NUMBER STEPPER (2026-09-23, user "buat komponen lagi buat number input tapi bukan slider").
+-- The mockup's [-] 5 [+] control. A stepper rather than a slider for settings where the EXACT value
+-- matters and the range is small: a slider makes you hunt for 10 minutes, two clicks land on it.
+--   Number{ Title, Desc, Min, Max, Step, Default, Suffix, ZeroLabel, Callback }
+-- ZeroLabel exists because 0 usually means OFF for these (no timer, no limit), and "0 min" reads like
+-- a setting rather than a disabled one.
+function Tab:Number(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
+	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+	local minV = tonumber(cfg.Min) or 0
+	local maxV = tonumber(cfg.Max) or 100
+	local step = tonumber(cfg.Step) or 1
+	local val = math.clamp(tonumber(cfg.Default) or minV, minV, maxV)
+
+	local box = new("Frame", { Parent = ctrl, BackgroundColor3 = INK, BackgroundTransparency = 0.9,
+		BorderSizePixel = 0, Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
+	corner(box, 8); hlist(box, 0)
+	local function stepBtn(txt, order)
+		return new("TextButton", { Parent = box, LayoutOrder = order, Text = txt, AutoButtonColor = false,
+			BackgroundTransparency = 1, Size = UDim2.fromOffset(38, 38), TextColor3 = INK,
+			FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 20 })
+	end
+	local minus = stepBtn("\u{2212}", 1) -- a real minus sign: a hyphen sits too high against the plus
+	local shown = new("TextLabel", { Parent = box, LayoutOrder = 2, BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(62, 38), Text = "", TextColor3 = INK,
+		FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 })
+	local plus = stepBtn("+", 3)
+
+	local function render()
+		if val == 0 and cfg.ZeroLabel then
+			shown.Text = tostring(cfg.ZeroLabel)
+		else
+			shown.Text = tostring(val) .. (cfg.Suffix and (" " .. cfg.Suffix) or "")
+		end
+		-- a step that cannot move is DIMMED, not removed, so the control never changes width mid-use
+		minus.TextTransparency = (val <= minV) and 0.6 or 0
+		plus.TextTransparency = (val >= maxV) and 0.6 or 0
+	end
+	local function set(v, fire)
+		v = math.clamp(math.floor(v + 0.5), minV, maxV)
+		if v == val then return end
+		val = v; render()
+		if fire and cfg.Callback then task.spawn(cfg.Callback, val) end
+	end
+	minus.MouseButton1Click:Connect(function() set(val - step, true) end)
+	plus.MouseButton1Click:Connect(function() set(val + step, true) end)
+	render()
+
+	local api = { Set = function(_, v) set(v, false) end, Get = function() return val end }
+	bindFlag(win, cfg, function() return val end, function(v) api:Set(v) end)
+	return api
+end
+
 function Tab:Input(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
