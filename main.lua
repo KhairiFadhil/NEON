@@ -1399,24 +1399,30 @@ function Tab:Button(cfg)
 	local cellLabels
 	if type(cfg.Cells) == "table" and #cfg.Cells > 0 then
 		cellLabels = {}
+		-- ⭐ NO FIXED HEIGHTS ANYWHERE (2026-09-23, user "kurang rapih paddingnya"). The first cut pinned
+		-- the box and each cell to 46px and padded 6/6 inside that, so the text sat wherever the leftover
+		-- space fell and the top/bottom gaps did not match. Letting AutomaticSize derive the height from
+		-- the content means the symmetric padding below IS the padding you see -- it cannot go lopsided.
+		-- The divider keeps a pixel height on purpose: a scale-height child inside an AutomaticSize parent
+		-- resolves against a 0 base and collapses (the same trap addDesc documents).
 		local box = new("Frame", { Parent = ctrl, LayoutOrder = 0, BackgroundTransparency = 1,
-			AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 46) })
+			AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
 		corner(box, 8); stroke(box, 1, INK, 0.82)
 		hlist(box, 0)
 		for i, it in ipairs(cfg.Cells) do
 			if i > 1 then
 				new("Frame", { Parent = box, LayoutOrder = i * 2 - 1, BackgroundColor3 = INK,
-					BackgroundTransparency = 0.86, BorderSizePixel = 0, Size = UDim2.fromOffset(1, 28) })
+					BackgroundTransparency = 0.86, BorderSizePixel = 0, Size = UDim2.fromOffset(1, 26) })
 			end
 			local cell = new("Frame", { Parent = box, LayoutOrder = i * 2, BackgroundTransparency = 1,
-				AutomaticSize = Enum.AutomaticSize.X, Size = UDim2.fromOffset(0, 46) })
-			pad(cell, 14, 6, 14, 6)
-			vlist(cell, 1)
+				AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
+			pad(cell, 16, 9, 16, 9)
+			vlist(cell, 2)
 			-- label() is already AutomaticSize.XY, so these size to their own text: no wrapping-to-zero
 			-- of the kind addDesc warns about, and the box grows to fit whatever the values become.
-			local cap = label(cell, string.upper(tostring(it.Title or "")), 9.5, Enum.FontWeight.Medium, INK)
+			local cap = label(cell, string.upper(tostring(it.Title or "")), 10, Enum.FontWeight.Medium, INK)
 			cap.LayoutOrder = 1; cap.TextTransparency = 0.45
-			local val = label(cell, tostring(it.Value or ""), 13, Enum.FontWeight.Bold, INK)
+			local val = label(cell, tostring(it.Value or ""), 14, Enum.FontWeight.Bold, INK)
 			val.LayoutOrder = 2
 			cellLabels[i] = val
 		end
