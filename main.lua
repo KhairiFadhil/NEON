@@ -323,6 +323,7 @@ local function addDesc(left, cfg)
 	d.LayoutOrder = 2; d.TextTransparency = 0.47
 	-- ponytail: natural width, no wrap. Design descs are short one-liners; a scale-width
 	-- child inside a flex-Fill column resolves against 0 base width and wraps to nothing.
+	return d -- so a row can update its own sub-caption later (see Button's SetDesc)
 end
 
 ------------------------------------------------------------------- library core
@@ -1387,7 +1388,7 @@ end
 function Tab:Button(cfg)
 	local win = self._win
 	local _, left, top, ctrl = makeRow(self._page, cfg)
-	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+	addLabelAndBadge(top, cfg); local descLbl = addDesc(left, cfg)
 	hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
 
 	-- optional text box to the LEFT of the button (mockup: "Config name..." beside Save)
@@ -1449,6 +1450,9 @@ function Tab:Button(cfg)
 		if cfg.Callback then task.spawn(cfg.Callback, box and box.Text or nil, pick and pick:Get() or nil) end
 	end)
 	return { Instance = btn, Input = box, Pick = pick,
+		-- live sub-caption: lets ONE row carry changing values (players, uptime) instead of needing a
+		-- separate Stats strip beside it. Upper-cased to match addDesc, which builds it upper-cased.
+		SetDesc = function(_, t) if descLbl then descLbl.Text = string.upper(tostring(t or "")) end end,
 		GetText = function() return box and box.Text or "" end }
 end
 
