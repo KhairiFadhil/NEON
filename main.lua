@@ -921,17 +921,20 @@ function Tab:ToggleGroup(cfg)
 	if card then
 		content.LayoutOrder = 1
 		vlist(card, 0).HorizontalAlignment = Enum.HorizontalAlignment.Center
-		pad(card, 0, 0, 10, 0) -- margin under the panel; the header above is unaffected
 	end
-	-- lighter than the card (0.93 -> 0.965) so it reads as an INSET surface. CanvasGroup, because one
-	-- GroupTransparency fades the whole panel evenly instead of a dozen children separately.
-	local wrap = new("CanvasGroup", { Parent = card or self._page, LayoutOrder = 2, BackgroundColor3 = INK,
-		BackgroundTransparency = 0.965, BorderSizePixel = 0, GroupTransparency = 1,
-		Size = UDim2.new(1, -28, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
+	-- ⭐ NO CARD PADDING (user "bawahnya kek lebar gitu"): a bottom pad on the card applied whether or not
+	-- the panel was open, so a COLLAPSED row sat 10px taller than every other row. The breathing room now
+	-- lives in the panel's own bottom padding, inside the clipped region, so a closed row measures exactly
+	-- like a plain toggle.
+	-- Lighter than the card (0.93 -> 0.965) so it reads as an INSET surface. ClipsDescendants is what makes
+	-- the accordion possible: the height is animated while the content stays put and is cut off.
+	local wrap = new("Frame", { Parent = card or self._page, LayoutOrder = 2, BackgroundColor3 = INK,
+		BackgroundTransparency = 0.965, BorderSizePixel = 0, ClipsDescendants = true,
+		Size = UDim2.new(1, -28, 0, 0) })
 	corner(wrap, 8)
 	local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(panel, 4, 12, 4, 12)
+	pad(panel, 4, 12, 4, 22) -- the extra 10 at the bottom is the margin the card used to add
 	vlist(panel, 2) -- a LIST of full-width rows; a grid here halved every control's width
 	FLAT[panel] = true -- rows build without their own card; the panel is the surface
 	if type(cfg.Settings) == "function" then
@@ -945,15 +948,20 @@ function Tab:ToggleGroup(cfg)
 		BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) })
 	local ic = makeIcon(exp, "chevron-down", 18, 1)
 	if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
+	-- ⭐ ACCORDION, NOT A FADE (user "animasinya accordion dong/kaya animasi turun gitu, jangan fade").
+	-- The panel keeps its natural layout and the WRAP's height is tweened from 0, with ClipsDescendants
+	-- cutting the content off mid-slide -- which is what reads as sliding down rather than appearing.
+	-- The height is read at CLICK time, not at build time: on the first frame the layout has not run yet
+	-- and panel.AbsoluteSize.Y is still 0.
 	local open = false
 	exp.MouseButton1Click:Connect(function()
 		open = not open
-		if open then wrap.Visible = true end
-		tween(wrap, { GroupTransparency = open and 0 or 1 })
+		tween(wrap, { Size = UDim2.new(1, -28, 0, open and panel.AbsoluteSize.Y or 0) })
 		if ic then tween(ic, { Rotation = open and 180 or 0 }) end
-		-- hide only AFTER the fade, and re-check `open` so a fast double-click cannot hide a panel that
-		-- has just been reopened
-		if not open then task.delay(0.16, function() if not open then wrap.Visible = false end end) end
+	end)
+	-- keep an OPEN panel's height honest when its content reflows (a dropdown opening, a window resize).
+	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		if open then wrap.Size = UDim2.new(1, -28, 0, panel.AbsoluteSize.Y) end
 	end)
 
 	bindFlag(win, cfg, function() return api:Get() end, function(v) api:Set(v) end)
