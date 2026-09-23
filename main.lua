@@ -859,7 +859,7 @@ NEON.Tab = NEON.CreateTab
 function Tab:Toggle(cfg)
 	local win = self._win
 	autosaveCb(win, cfg)
-	local _, left, top, ctrl = makeRow(self._page, cfg)
+	local row, left, top, ctrl = makeRow(self._page, cfg)
 	addLabelAndBadge(top, cfg); addDesc(left, cfg)
 	local id = cfg.Title
 	local on = cfg.Default and true or false
@@ -880,6 +880,30 @@ function Tab:Toggle(cfg)
 		if cfg.Callback then task.spawn(cfg.Callback, on) end
 	end)
 	win:_refreshCount()
+
+	-- ⭐ EXPANDABLE SUB-SETTINGS (2026-09-23, user mockup: Auto Server Hop opening onto its own
+	-- Hop Interval / player-count rows). cfg.Settings is a BUILDER, not a schema:
+	--     Settings = function(sub) sub:Dropdown{...}; sub:Slider{...} end
+	-- `sub` is an ordinary Tab whose page is the panel, so every existing element builder works inside
+	-- it unchanged -- no new control types, no second layout engine, and a sub-row looks exactly like a
+	-- top-level one because it IS one. That reuse is the whole reason this is small.
+	if type(cfg.Settings) == "function" then
+		-- the row held only the card; give it a column so the panel can sit UNDER that card
+		vlist(row, 8)
+		local panel = new("Frame", { Parent = row, LayoutOrder = 2, BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
+		vlist(panel, 8)
+		pcall(cfg.Settings, setmetatable({ _win = win, _page = panel }, Tab))
+		local exp = new("TextButton", { Parent = ctrl, LayoutOrder = 9, Text = "", AutoButtonColor = false,
+			BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) })
+		local ic = makeIcon(exp, "chevron-down", 18, 1)
+		if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
+		exp.MouseButton1Click:Connect(function()
+			panel.Visible = not panel.Visible
+			if ic then ic.Rotation = panel.Visible and 180 or 0 end
+		end)
+	end
+
 	local api = { Set = function(_, v) on = v and true or false; render() end, Get = function() return on end }
 	bindFlag(win, cfg, function() return on end, function(v) api:Set(v) end)
 	return api
