@@ -925,9 +925,15 @@ function Tab:ToggleGroup(cfg)
 	-- containers — the thing that made the old sibling panel always read as a second card.
 	local content = ctrl.Parent
 	local card = content and content.Parent
+	local cardPad
 	if card then
 		content.LayoutOrder = 1
 		vlist(card, 0).HorizontalAlignment = Enum.HorizontalAlignment.Center
+		-- ⭐ the card's bottom margin EXISTS ONLY WHILE OPEN (user "componentnya ga ngeshell isinya").
+		-- MEASURED: card bottom - wrap bottom = 0, so the panel ran flush into the card's edge and the card
+		-- framed it on three sides only. A constant bottom pad is what made a COLLAPSED row 10px taller than
+		-- every other row, so it is animated with the accordion instead of set once.
+		cardPad = pad(card, 0, 0, 0, 0)
 	end
 	-- ⭐ NO CARD PADDING (user "bawahnya kek lebar gitu"): a bottom pad on the card applied whether or not
 	-- the panel was open, so a COLLAPSED row sat 10px taller than every other row. The breathing room now
@@ -947,7 +953,7 @@ function Tab:ToggleGroup(cfg)
 	-- (user "pas di bawah ga kewrap penuh"). MEASURED on the live panel: padTop=4 padBottom=4, which is
 	-- what gave it away. Symmetric now, with a real bottom margin. Sides stay modest: the wrap's 10 off
 	-- the card, plus this 8, plus the flat row's own 14 = 32 a side.
-	pad(panel, 6, 8, 10, 8)
+	pad(panel, 6, 8, 6, 8) -- symmetric: bottom was 10 against top's 6, which read as a dead strip
 	vlist(panel, 2) -- a LIST of full-width rows; a grid here halved every control's width
 	FLAT[panel] = true -- rows build without their own card; the panel is the surface
 	if type(cfg.Settings) == "function" then
@@ -970,6 +976,7 @@ function Tab:ToggleGroup(cfg)
 	exp.MouseButton1Click:Connect(function()
 		open = not open
 		if ic then tween(ic, { Rotation = open and 180 or 0 }) end
+		if cardPad then tween(cardPad, { PaddingBottom = UDim.new(0, open and 10 or 0) }) end
 		if open then
 			-- animate to a MEASURED height, then hand the wrap over to AutomaticSize so it tracks the
 			-- content from there. ⭐ The snapshot alone was the bug (user "bawahnya kok begini"): the height
