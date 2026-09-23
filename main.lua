@@ -864,11 +864,10 @@ end
 NEON.Tab = NEON.CreateTab
 
 ------------------------------------------------------------------- controls
-function Tab:Toggle(cfg)
-	local win = self._win
-	autosaveCb(win, cfg)
-	local row, left, top, ctrl = makeRow(self._page, cfg)
-	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+-- ⭐ EXTRACTED so Toggle and ToggleGroup share ONE implementation (2026-09-23). Same reason
+-- dropdownControl was split out earlier: the moment a second element needs the control, duplicating
+-- the body is how the two silently drift apart.
+local function toggleControl(win, ctrl, cfg)
 	local id = cfg.Title
 	local on = cfg.Default and true or false
 	win._toggleStates[id] = on
@@ -888,71 +887,76 @@ function Tab:Toggle(cfg)
 		if cfg.Callback then task.spawn(cfg.Callback, on) end
 	end)
 	win:_refreshCount()
+	return { Set = function(_, v) on = v and true or false; render() end, Get = function() return on end }
+end
 
-	-- ⭐ EXPANDABLE SUB-SETTINGS (2026-09-23, user mockup: Auto Server Hop opening onto its own
-	-- Hop Interval / player-count rows). cfg.Settings is a BUILDER, not a schema:
-	--     Settings = function(sub) sub:Dropdown{...}; sub:Slider{...} end
-	-- `sub` is an ordinary Tab whose page is the panel, so every existing element builder works inside
-	-- it unchanged -- no new control types, no second layout engine, and a sub-row looks exactly like a
-	-- top-level one because it IS one. That reuse is the whole reason this is small.
+function Tab:Toggle(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
+	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+	local api = toggleControl(win, ctrl, cfg)
+	bindFlag(win, cfg, function() return api:Get() end, function(v) api:Set(v) end)
+	return api
+end
+
+-- ⭐ TOGGLE GROUP: a toggle that OWNS a panel of sub-settings (2026-09-23, user "kenapa ga di buat
+-- jadi component berbeda aja" — and they were right). Its own component precisely BECAUSE the previous
+-- bolt-on kept post-editing a card makeRow had already laid out: reaching through ctrl.Parent.Parent,
+-- adding a column to a frame built without one, and fighting that structure every revision. Here the
+-- card is set up for a column from the first line, and Tab:Toggle goes back to being untouched.
+--     ToggleGroup{ Title = ..., Settings = function(sub) sub:Dropdown{...}; sub:Slider{...} end }
+-- `sub` is an ordinary Tab whose page is the panel, so every existing builder works inside it.
+function Tab:ToggleGroup(cfg)
+	local win = self._win
+	autosaveCb(win, cfg)
+	local _, left, top, ctrl = makeRow(self._page, cfg)
+	addLabelAndBadge(top, cfg); addDesc(left, cfg)
+	local api = toggleControl(win, ctrl, cfg)
+
+	-- THE PANEL LIVES INSIDE THE CARD: one outer shape, so there is no seam between two rounded
+	-- containers — the thing that made the old sibling panel always read as a second card.
+	local content = ctrl.Parent
+	local card = content and content.Parent
+	if card then
+		content.LayoutOrder = 1
+		vlist(card, 0).HorizontalAlignment = Enum.HorizontalAlignment.Center
+		pad(card, 0, 0, 10, 0) -- margin under the panel; the header above is unaffected
+	end
+	-- lighter than the card (0.93 -> 0.965) so it reads as an INSET surface. CanvasGroup, because one
+	-- GroupTransparency fades the whole panel evenly instead of a dozen children separately.
+	local wrap = new("CanvasGroup", { Parent = card or self._page, LayoutOrder = 2, BackgroundColor3 = INK,
+		BackgroundTransparency = 0.965, BorderSizePixel = 0, GroupTransparency = 1,
+		Size = UDim2.new(1, -28, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
+	corner(wrap, 8)
+	local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	pad(panel, 4, 12, 4, 12)
+	vlist(panel, 2) -- a LIST of full-width rows; a grid here halved every control's width
+	FLAT[panel] = true -- rows build without their own card; the panel is the surface
 	if type(cfg.Settings) == "function" then
-		-- ⭐ THE PANEL LIVES *INSIDE* THE CARD (user "sub setting ama main itunya kaya ga nyatu").
-		-- It used to be the card's SIBLING, so two rounded containers met edge to edge and no amount of
-		-- closing the gap could hide that seam -- it always read as two cards. Inside the card there is
-		-- only ONE outer shape, and the card's own surface frames the panel on every side, which is what
-		-- the mockup shows. content/card are reachable from ctrl, which makeRow does return.
-		local content = ctrl.Parent
-		local card = content and content.Parent
-		if card then
-			content.LayoutOrder = 1
-			vlist(card, 0).HorizontalAlignment = Enum.HorizontalAlignment.Center
-			pad(card, 0, 0, 10, 0) -- the margin under the panel; content sits above it untouched
-		end
-		-- ⭐ ITS OWN SHADE (user "di kasih shade yg agak beda dong"). The card sits at 0.93; the panel is
-		-- LIGHTER at 0.965 so it reads as an inset surface rather than more of the same card. A
-		-- CanvasGroup, because GroupTransparency fades the whole panel as one -- fading a dozen children
-		-- individually is both slower and visibly uneven.
-		local wrap = new("CanvasGroup", { Parent = card or row, LayoutOrder = 2, BackgroundColor3 = INK,
-			BackgroundTransparency = 0.965, BorderSizePixel = 0, GroupTransparency = 1,
-			Size = UDim2.new(1, -28, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
-		corner(wrap, 8)
-		local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-		pad(panel, 4, 12, 4, 12)
-		-- ⭐ A LIST OF FULL-WIDTH ROWS, NOT COLUMNS (user "di buat row aja list gitu jangan ngecolumn").
-		-- The grid that was here put two settings side by side, which halved every control's width and
-		-- is the "ngecolumn" being objected to. One setting per row, stacked.
-		vlist(panel, 2)
-		FLAT[panel] = true -- rows on this page build without their own card; the panel is the surface
 		pcall(cfg.Settings, setmetatable({ _win = win, _page = panel }, Tab))
-		-- ⭐ ctrl HAS NO LAYOUT until now, because a Toggle only ever put ONE child in it. Adding the
-		-- expander without one parked both buttons at (0,0): MEASURED live, track and chevron both at
-		-- [734,385], the chevron drawn underneath the toggle and therefore invisible. Only added on this
-		-- path, so every toggle without Settings keeps the exact single-child geometry it had.
-		hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
-		local exp = new("TextButton", { Parent = ctrl, LayoutOrder = 9, Text = "", AutoButtonColor = false,
-			BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) })
-		local ic = makeIcon(exp, "chevron-down", 18, 1)
-		if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
-		-- ⭐ MICRO-ANIMATION (user "terlalu kaku, di buat ada micro animationnya dong"): the panel fades
-		-- and lifts into place while the chevron rotates, instead of snapping on. Visible is still
-		-- toggled at the ENDS so a collapsed panel costs no layout work -- on the way out it is only
-		-- hidden once the fade has finished, and the `open` re-check stops a fast double-click from
-		-- hiding a panel that has just been re-opened.
-		local open = false
-		exp.MouseButton1Click:Connect(function()
-			open = not open
-			if open then wrap.Visible = true end
-			tween(wrap, { GroupTransparency = open and 0 or 1 })
-			if ic then tween(ic, { Rotation = open and 180 or 0 }) end
-			if not open then
-				task.delay(0.16, function() if not open then wrap.Visible = false end end)
-			end
-		end)
 	end
 
-	local api = { Set = function(_, v) on = v and true or false; render() end, Get = function() return on end }
-	bindFlag(win, cfg, function() return on end, function(v) api:Set(v) end)
+	-- ctrl was built for a SINGLE child, so it needs a layout once the chevron joins the toggle;
+	-- without one both were parked at (0,0) and the chevron drew underneath the track.
+	hlist(ctrl, 10).VerticalAlignment = Enum.VerticalAlignment.Center
+	local exp = new("TextButton", { Parent = ctrl, LayoutOrder = 9, Text = "", AutoButtonColor = false,
+		BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) })
+	local ic = makeIcon(exp, "chevron-down", 18, 1)
+	if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
+	local open = false
+	exp.MouseButton1Click:Connect(function()
+		open = not open
+		if open then wrap.Visible = true end
+		tween(wrap, { GroupTransparency = open and 0 or 1 })
+		if ic then tween(ic, { Rotation = open and 180 or 0 }) end
+		-- hide only AFTER the fade, and re-check `open` so a fast double-click cannot hide a panel that
+		-- has just been reopened
+		if not open then task.delay(0.16, function() if not open then wrap.Visible = false end end) end
+	end)
+
+	bindFlag(win, cfg, function() return api:Get() end, function(v) api:Set(v) end)
 	return api
 end
 
