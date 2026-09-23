@@ -989,6 +989,15 @@ function Tab:ToggleGroup(cfg)
 				if open then wrap.AutomaticSize = Enum.AutomaticSize.Y end
 			end)
 		else
+			-- ⭐ CLOSE A DROPDOWN THAT BELONGS TO THIS PANEL (user "kalau framenya ditutup dropdownnya otomatis
+			-- ketutup juga"). A popup left open while its panel collapses is clipped away or left hanging over
+			-- the rows below it, and clicking it then edits a setting the user can no longer see.
+			-- Scoped by _openBtn, not by closing whatever is open: only ONE dropdown can be open per window,
+			-- so an unscoped close would also dismiss a dropdown belonging to some other row entirely.
+			if win._closePopup and win._openBtn and win._openBtn:IsDescendantOf(panel) then
+				pcall(win._closePopup)
+				win._openDropdown, win._closePopup, win._openBtn = nil, nil, nil
+			end
 			-- pin the height AutomaticSize was holding before animating it away, or the tween starts from 0
 			wrap.AutomaticSize = Enum.AutomaticSize.None
 			wrap.Size = UDim2.new(1, -20, 0, wrap.AbsoluteSize.Y)
