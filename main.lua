@@ -253,17 +253,25 @@ end
 -- top divider is gone: the gap does that job now and keeping both read as a seam.
 -- Takes cfg because the tile is a sibling of the text column — a tile centred against the CARD cannot
 -- live inside the title's wrapping row, which is where the inline icon used to go.
+-- ⭐ FLAT PAGES (2026-09-23). A page registered here builds its rows WITHOUT their own card: no
+-- background, no side gutter, tighter padding. Used by Toggle's expandable settings panel, where a
+-- stack of full cards inside another card is exactly the "kaku" look the user objected to -- the
+-- panel supplies the surface, the rows just sit on it. Weak-keyed so a rebuilt page is not retained.
+local FLAT = setmetatable({}, { __mode = "k" })
+
 local function makeRow(page, cfg)
 	cfg = cfg or {}
+	local flat = FLAT[page] and true or false
 	local row = new("Frame", { Parent = page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(row, 0, 24, 0, 24) -- side gutter only; the page's list gap spaces the cards
-	local card = new("Frame", { Parent = row, BackgroundColor3 = INK, BackgroundTransparency = 0.93,
+	pad(row, 0, flat and 0 or 24, 0, flat and 0 or 24) -- side gutter only; the page's list gap spaces the cards
+	local card = new("Frame", { Parent = row, BackgroundColor3 = INK,
+		BackgroundTransparency = flat and 1 or 0.93,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	corner(card, 10)
 	local content = new("Frame", { Parent = card, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(content, 14, 16, 14, 16)
+	pad(content, flat and 10 or 14, flat and 18 or 16, flat and 10 or 14, flat and 18 or 16)
 	hlist(content, 16).VerticalAlignment = Enum.VerticalAlignment.Center
 
 	if iconProps(cfg.Icon) then
@@ -889,10 +897,25 @@ function Tab:Toggle(cfg)
 	-- top-level one because it IS one. That reuse is the whole reason this is small.
 	if type(cfg.Settings) == "function" then
 		-- the row held only the card; give it a column so the panel can sit UNDER that card
-		vlist(row, 8)
-		local panel = new("Frame", { Parent = row, LayoutOrder = 2, BackgroundTransparency = 1,
+		vlist(row, 6)
+		-- ⭐ ITS OWN SHADE (user "di kasih shade yg agak beda dong"). The card sits at 0.93; the panel is
+		-- LIGHTER at 0.965 so it reads as a surface attached under the header rather than a second card
+		-- of the same weight. A CanvasGroup, because GroupTransparency fades the whole panel as one --
+		-- fading a dozen children individually is both slower and visibly uneven.
+		local wrap = new("CanvasGroup", { Parent = row, LayoutOrder = 2, BackgroundColor3 = INK,
+			BackgroundTransparency = 0.965, BorderSizePixel = 0, GroupTransparency = 1,
 			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
-		vlist(panel, 8)
+		corner(wrap, 10)
+		local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+		pad(panel, 6, 10, 6, 10)
+		-- ⭐ TWO COLUMNS like the mockup. A grid, not a list: the cell width is what keeps both columns
+		-- equal whatever the panel is resized to, and AutomaticSize.Y still works because a UIGridLayout
+		-- reports AbsoluteContentSize like any other layout.
+		new("UIGridLayout", { Parent = panel, CellSize = UDim2.new(0.5, -6, 0, 58),
+			CellPadding = UDim2.fromOffset(12, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+			FillDirectionMaxCells = 2 })
+		FLAT[panel] = true -- rows on this page build without their own card; the panel is the surface
 		pcall(cfg.Settings, setmetatable({ _win = win, _page = panel }, Tab))
 		-- ⭐ ctrl HAS NO LAYOUT until now, because a Toggle only ever put ONE child in it. Adding the
 		-- expander without one parked both buttons at (0,0): MEASURED live, track and chevron both at
@@ -903,9 +926,20 @@ function Tab:Toggle(cfg)
 			BackgroundTransparency = 1, Size = UDim2.fromOffset(28, 28) })
 		local ic = makeIcon(exp, "chevron-down", 18, 1)
 		if ic then ic.AnchorPoint = Vector2.new(0.5, 0.5); ic.Position = UDim2.fromScale(0.5, 0.5) end
+		-- ⭐ MICRO-ANIMATION (user "terlalu kaku, di buat ada micro animationnya dong"): the panel fades
+		-- and lifts into place while the chevron rotates, instead of snapping on. Visible is still
+		-- toggled at the ENDS so a collapsed panel costs no layout work -- on the way out it is only
+		-- hidden once the fade has finished, and the `open` re-check stops a fast double-click from
+		-- hiding a panel that has just been re-opened.
+		local open = false
 		exp.MouseButton1Click:Connect(function()
-			panel.Visible = not panel.Visible
-			if ic then ic.Rotation = panel.Visible and 180 or 0 end
+			open = not open
+			if open then wrap.Visible = true end
+			tween(wrap, { GroupTransparency = open and 0 or 1 })
+			if ic then tween(ic, { Rotation = open and 180 or 0 }) end
+			if not open then
+				task.delay(0.16, function() if not open then wrap.Visible = false end end)
+			end
 		end)
 	end
 
