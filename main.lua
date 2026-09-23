@@ -896,34 +896,33 @@ function Tab:Toggle(cfg)
 	-- it unchanged -- no new control types, no second layout engine, and a sub-row looks exactly like a
 	-- top-level one because it IS one. That reuse is the whole reason this is small.
 	if type(cfg.Settings) == "function" then
-		-- ⭐ NO GAP (user "sub settingnya masuk ke dalam kaya container yg masih nyatu dengan opsinya"):
-		-- the panel must read as the SAME container continuing under the header, not a separate card
-		-- floating below it. A hairline at the top of the panel does the separating instead.
-		vlist(row, 0)
+		-- ⭐ THE PANEL LIVES *INSIDE* THE CARD (user "sub setting ama main itunya kaya ga nyatu").
+		-- It used to be the card's SIBLING, so two rounded containers met edge to edge and no amount of
+		-- closing the gap could hide that seam -- it always read as two cards. Inside the card there is
+		-- only ONE outer shape, and the card's own surface frames the panel on every side, which is what
+		-- the mockup shows. content/card are reachable from ctrl, which makeRow does return.
+		local content = ctrl.Parent
+		local card = content and content.Parent
+		if card then
+			content.LayoutOrder = 1
+			vlist(card, 0).HorizontalAlignment = Enum.HorizontalAlignment.Center
+			pad(card, 0, 0, 10, 0) -- the margin under the panel; content sits above it untouched
+		end
 		-- ⭐ ITS OWN SHADE (user "di kasih shade yg agak beda dong"). The card sits at 0.93; the panel is
-		-- LIGHTER at 0.965 so it reads as a surface attached under the header rather than a second card
-		-- of the same weight. A CanvasGroup, because GroupTransparency fades the whole panel as one --
-		-- fading a dozen children individually is both slower and visibly uneven.
-		local wrap = new("CanvasGroup", { Parent = row, LayoutOrder = 2, BackgroundColor3 = INK,
+		-- LIGHTER at 0.965 so it reads as an inset surface rather than more of the same card. A
+		-- CanvasGroup, because GroupTransparency fades the whole panel as one -- fading a dozen children
+		-- individually is both slower and visibly uneven.
+		local wrap = new("CanvasGroup", { Parent = card or row, LayoutOrder = 2, BackgroundColor3 = INK,
 			BackgroundTransparency = 0.965, BorderSizePixel = 0, GroupTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
-		corner(wrap, 10)
-		local inner = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
+			Size = UDim2.new(1, -28, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Visible = false })
+		corner(wrap, 8)
+		local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
 			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-		vlist(inner, 0)
-		-- the hairline that separates the header from the panel, since they now share one surface
-		new("Frame", { Parent = inner, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.88,
-			BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 1) })
-		local panel = new("Frame", { Parent = inner, LayoutOrder = 2, BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-		pad(panel, 8, 14, 8, 14)
-		-- ⭐ TWO PER ROW, laid out ACROSS (user "sub settingnya di buat row jangan column kaya di gambar").
-		-- The width arithmetic is the whole trick: 2*(0.5W - 6) + 12 padding == W EXACTLY, and a grid that
-		-- fits its row to the pixel wraps on any rounding -- which is what turned this into one cell per
-		-- line, i.e. the column the user is objecting to. -14 leaves 16px of slack so two always fit.
-		new("UIGridLayout", { Parent = panel, CellSize = UDim2.new(0.5, -14, 0, 56),
-			CellPadding = UDim2.fromOffset(12, 6), SortOrder = Enum.SortOrder.LayoutOrder,
-			FillDirection = Enum.FillDirection.Horizontal, FillDirectionMaxCells = 2 })
+		pad(panel, 4, 12, 4, 12)
+		-- ⭐ A LIST OF FULL-WIDTH ROWS, NOT COLUMNS (user "di buat row aja list gitu jangan ngecolumn").
+		-- The grid that was here put two settings side by side, which halved every control's width and
+		-- is the "ngecolumn" being objected to. One setting per row, stacked.
+		vlist(panel, 2)
 		FLAT[panel] = true -- rows on this page build without their own card; the panel is the surface
 		pcall(cfg.Settings, setmetatable({ _win = win, _page = panel }, Tab))
 		-- ⭐ ctrl HAS NO LAYOUT until now, because a Toggle only ever put ONE child in it. Adding the
