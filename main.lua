@@ -1427,7 +1427,11 @@ function Tab:Button(cfg)
 	if cfg.Placeholder then
 		box = new("TextBox", { Parent = ctrl, LayoutOrder = 1, BackgroundColor3 = INK, BackgroundTransparency = 0.92,
 			BorderSizePixel = 0, Size = UDim2.fromOffset(cfg.InputWidth or 190, 42), Text = "",
-			PlaceholderText = cfg.Placeholder, TextColor3 = INK, PlaceholderColor3 = INK,
+			-- ⭐ upper-cased like every other caption in a row (titles and descs both are), so a lone
+			-- lower-case placeholder does not read as a different design. Only the PLACEHOLDER: what the
+			-- user types is untouched, which matters because Tab:Input uppercasing real text is what
+			-- destroyed webhook URLs and is why this box exists at all.
+			PlaceholderText = string.upper(tostring(cfg.Placeholder)), TextColor3 = INK, PlaceholderColor3 = INK,
 			FontFace = bodyFont(), TextSize = 12, ClearTextOnFocus = false,
 			-- ⭐ clip and truncate: a long value (a webhook URL, a path) otherwise runs straight out of the
 			-- box, which is a bug the caller then has to patch from outside.
