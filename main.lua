@@ -271,7 +271,7 @@ local function makeRow(page, cfg)
 	corner(card, 10)
 	local content = new("Frame", { Parent = card, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(content, flat and 10 or 14, flat and 18 or 16, flat and 10 or 14, flat and 18 or 16)
+	pad(content, flat and 10 or 14, flat and 14 or 16, flat and 10 or 14, flat and 14 or 16)
 	hlist(content, 16).VerticalAlignment = Enum.VerticalAlignment.Center
 
 	if iconProps(cfg.Icon) then
@@ -930,11 +930,13 @@ function Tab:ToggleGroup(cfg)
 	-- the accordion possible: the height is animated while the content stays put and is cut off.
 	local wrap = new("Frame", { Parent = card or self._page, LayoutOrder = 2, BackgroundColor3 = INK,
 		BackgroundTransparency = 0.965, BorderSizePixel = 0, ClipsDescendants = true,
-		Size = UDim2.new(1, -28, 0, 0) })
+		Size = UDim2.new(1, -20, 0, 0) })
 	corner(wrap, 8)
 	local panel = new("Frame", { Parent = wrap, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
-	pad(panel, 4, 12, 4, 22) -- the extra 10 at the bottom is the margin the card used to add
+	-- ⭐ side padding trimmed 12 -> 6 (user "padding kanan kiri kegedean dikit"). Three insets stack here:
+	-- the wrap's 10 off the card, this 6, and the flat row's own 14 = 30 a side, down from 44.
+	pad(panel, 4, 6, 4, 16) -- the extra bottom is the margin the card no longer adds
 	vlist(panel, 2) -- a LIST of full-width rows; a grid here halved every control's width
 	FLAT[panel] = true -- rows build without their own card; the panel is the surface
 	if type(cfg.Settings) == "function" then
@@ -956,12 +958,12 @@ function Tab:ToggleGroup(cfg)
 	local open = false
 	exp.MouseButton1Click:Connect(function()
 		open = not open
-		tween(wrap, { Size = UDim2.new(1, -28, 0, open and panel.AbsoluteSize.Y or 0) })
+		tween(wrap, { Size = UDim2.new(1, -20, 0, open and panel.AbsoluteSize.Y or 0) })
 		if ic then tween(ic, { Rotation = open and 180 or 0 }) end
 	end)
 	-- keep an OPEN panel's height honest when its content reflows (a dropdown opening, a window resize).
 	panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-		if open then wrap.Size = UDim2.new(1, -28, 0, panel.AbsoluteSize.Y) end
+		if open then wrap.Size = UDim2.new(1, -20, 0, panel.AbsoluteSize.Y) end
 	end)
 
 	bindFlag(win, cfg, function() return api:Get() end, function(v) api:Set(v) end)
