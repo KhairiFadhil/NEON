@@ -1579,7 +1579,10 @@ function Tab:Button(cfg)
 			end
 			local cell = new("Frame", { Parent = box, LayoutOrder = i * 2, BackgroundTransparency = 1,
 				AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
-			pad(cell, 16, 9, 16, 9)
+			-- ⭐ (t, r, b, l). Written 16, 9, 16, 9 this was 16 of VERTICAL padding on a two-line cell and
+			-- only 9 at the sides -- the opposite of what a short, wide stat cell wants. Same slot mix-up
+			-- as the settings panel above; found by auditing every pad() call after that one.
+			pad(cell, 9, 16, 9, 16)
 			vlist(cell, 2)
 			-- label() is already AutomaticSize.XY, so these size to their own text: no wrapping-to-zero
 			-- of the kind addDesc warns about, and the box grows to fit whatever the values become.
