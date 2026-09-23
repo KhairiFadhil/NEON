@@ -507,7 +507,14 @@ function NEON:CreateWindow(cfg)
 	win._avatarStroke = avatarStroke
 
 	-- BODY (collapses on minimize) ----------------------------------------
-	local body = new("Frame", { Parent = panel, LayoutOrder = 3, BackgroundColor3 = ACCENT,
+	-- ⭐ TRANSPARENT, NOT ACCENT-PAINTED (2026-09-23, user "roundednya yg atas doang yg bawahnya engga").
+	-- MEASURED: panel is 772x558 with corner=4 and ClipsDescendants, but Roblox clips to the RECTANGLE --
+	-- UICorner only rounds an element's OWN background, it does not clip children to that shape. This body
+	-- reaches the panel's bottom edge (bottomGap=0) and was painted opaque with corner=NONE, so its square
+	-- corners covered the panel's rounded ones. The header survived only because it carries a corner itself.
+	-- It is the SAME colour as the panel, so dropping its fill changes nothing visible and lets the panel's
+	-- own rounding show on all four corners.
+	local body = new("Frame", { Parent = panel, LayoutOrder = 3, BackgroundTransparency = 1,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
 	vlist(body, 0)
 	win._body = body
