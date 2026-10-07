@@ -94,6 +94,15 @@ Elements are added to a Tab. Every element shares these common config keys:
 
 Most elements return `{ Set, Get }` — see each below.
 
+Every row element (Toggle, ToggleGroup, Checkbox, Slider, Number, Input, Keybind, Segmented, Dropdown,
+Colorpicker, Button) also gets:
+```lua
+el:SetVisible(false)   -- hide the whole row (the list closes the gap); true shows it again
+el:SetDisabled(true)   -- greyed out, clicks do nothing (like a disabled HTML button); false re-enables
+el:IsDisabled()        -- boolean
+-- or at build time: Tab:Toggle{ ..., Visible = false, Disabled = true }
+```
+
 ---
 
 ## Elements

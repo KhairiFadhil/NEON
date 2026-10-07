@@ -259,11 +259,16 @@ end
 -- panel supplies the surface, the rows just sit on it. Weak-keyed so a rebuilt page is not retained.
 local FLAT = setmetatable({}, { __mode = "k" })
 
+-- the row a control builder is building, for rowState below. A SINK per builder call, and only the FIRST row
+-- lands in it: ToggleGroup builds its own row and THEN its panel's rows, which must not overwrite it.
+local ROW_SINK
+
 local function makeRow(page, cfg)
 	cfg = cfg or {}
 	local flat = FLAT[page] and true or false
 	local row = new("Frame", { Parent = page, BackgroundTransparency = 1,
 		Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	if ROW_SINK and not ROW_SINK.row then ROW_SINK.row = row end
 	pad(row, 0, flat and 0 or 24, 0, flat and 0 or 24) -- side gutter only; the page's list gap spaces the cards
 	local card = new("Frame", { Parent = row, BackgroundColor3 = INK,
 		BackgroundTransparency = flat and 1 or 0.93,
@@ -1741,6 +1746,52 @@ function Tab:Stats(cfg)
 end
 
 -- Section header: a divider line + small bar + uppercase label to group controls.
+-- ⭐ ROW STATE on every control (2026-10-07, user "kaya html button, kalau di-disable ga bisa dipencet"; and rows
+-- that show only for the picked mode). Every builder's api gains:
+--   api:SetVisible(bool)   -- hide/show the whole row; the page's list closes the gap
+--   api:SetDisabled(bool)  -- dim the row and swallow every click on it (an overlay over the card)
+-- and cfg.Visible = false / cfg.Disabled = true apply them at build. One wrapper instead of a line in each builder,
+-- so a builder added later only has to be listed here.
+local function rowState(row, api)
+	api = type(api) == "table" and api or {}
+	local block
+	function api:SetVisible(v) row.Visible = v ~= false end
+	function api:SetDisabled(d)
+		d = d and true or false
+		if d and not block then
+			-- Active TextButton = sinks the input the controls under it would get; ACCENT at 0.4 = the panel
+			-- colour washed over the card, which is what reads as greyed-out on this theme
+			block = new("TextButton", { Parent = row, Text = "", AutoButtonColor = false, Active = true,
+				BackgroundColor3 = ACCENT, BackgroundTransparency = 0.4, BorderSizePixel = 0,
+				Size = UDim2.fromScale(1, 1), ZIndex = 50 })
+			corner(block, 10)
+		end
+		if block then block.Visible = d end
+		api.Disabled = d
+	end
+	function api:IsDisabled() return api.Disabled == true end
+	return api
+end
+for _, name in ipairs({ "Toggle", "ToggleGroup", "Checkbox", "Slider", "Number", "Input", "Keybind", "Segmented",
+	"Dropdown", "Colorpicker", "Button" }) do
+	local build = Tab[name]
+	if build then
+		Tab[name] = function(self, cfg, ...)
+			local prev, sink = ROW_SINK, {}
+			ROW_SINK = sink
+			local api = build(self, cfg, ...)
+			ROW_SINK = prev
+			if not sink.row then return api end
+			api = rowState(sink.row, api)
+			if type(cfg) == "table" then
+				if cfg.Visible == false then api:SetVisible(false) end
+				if cfg.Disabled then api:SetDisabled(true) end
+			end
+			return api
+		end
+	end
+end
+
 function Tab:Section(cfg)
 	local title = (type(cfg) == "table" and (cfg.Title or "")) or tostring(cfg or "")
 	-- ⭐ NO DIVIDER WHEN THIS SECTION OPENS THE PAGE (2026-09-22). The hairline separates a section
