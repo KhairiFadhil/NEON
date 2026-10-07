@@ -1115,6 +1115,10 @@ function Tab:Number(cfg)
 	local ml = hlist(mid, 4); ml.VerticalAlignment = Enum.VerticalAlignment.Center
 	new("UISizeConstraint", { Parent = mid, MinSize = Vector2.new(62, 38) })
 	ml.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	-- cfg.Prefix: a fixed label BEFORE the value ("$" for money), the mirror of Suffix
+	local pre = cfg.Prefix and new("TextLabel", { Parent = mid, LayoutOrder = 0, BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = tostring(cfg.Prefix),
+		TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 }) or nil
 	local entry = new("TextBox", { Parent = mid, LayoutOrder = 1, BackgroundTransparency = 1, ClearTextOnFocus = false,
 		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = "", TextColor3 = INK,
 		FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 })
@@ -1127,9 +1131,11 @@ function Tab:Number(cfg)
 		if val == 0 and cfg.ZeroLabel then
 			entry.Text = tostring(cfg.ZeroLabel)
 			if unit then unit.Visible = false end
+			if pre then pre.Visible = false end
 		else
 			entry.Text = tostring(val)
 			if unit then unit.Visible = true end
+			if pre then pre.Visible = true end
 		end
 		-- a step that cannot move is DIMMED, not removed, so the control never changes width mid-use
 		minus.TextTransparency = (val <= minV) and 0.6 or 0

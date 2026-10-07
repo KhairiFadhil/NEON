@@ -131,6 +131,7 @@ s:Set(200); print(s:Get())   -- number
 ```lua
 local n = Tab:Number{ Title = "Hop Interval", Min = 0, Max = 240, Step = 5, Default = 10,
                       Suffix = "min",          -- fixed unit label after the value (optional)
+                      Prefix = "$",            -- fixed label before the value (optional)
                       ZeroLabel = "Off",       -- shown instead of 0 (optional)
                       Callback = function(v) end }
 n:Set(30); print(n:Get())   -- number
