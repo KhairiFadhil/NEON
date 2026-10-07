@@ -127,6 +127,17 @@ local s = Tab:Slider{ Title = "WalkSpeed", Min = 16, Max = 500, Step = 1, Unit =
 s:Set(200); print(s:Get())   -- number
 ```
 
+### Number (stepper)
+```lua
+local n = Tab:Number{ Title = "Hop Interval", Min = 0, Max = 240, Step = 5, Default = 10,
+                      Suffix = "min",          -- fixed unit label after the value (optional)
+                      ZeroLabel = "Off",       -- shown instead of 0 (optional)
+                      Callback = function(v) end }
+n:Set(30); print(n:Get())   -- number
+```
+`−` / `+` step by `Step`; the value itself is typeable (click it, type, Enter). Typed input keeps digits only and is
+clamped to Min/Max; anything unreadable puts the previous value back. The Suffix stays put while typing.
+
 ### Input (text box)
 ```lua
 Tab:Input{ Title = "Name", Default = "", Placeholder = "type here",

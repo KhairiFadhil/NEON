@@ -1106,16 +1106,30 @@ function Tab:Number(cfg)
 			FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 20 })
 	end
 	local minus = stepBtn("\u{2212}", 1) -- a real minus sign: a hyphen sits too high against the plus
-	local shown = new("TextLabel", { Parent = box, LayoutOrder = 2, BackgroundTransparency = 1,
-		Size = UDim2.fromOffset(62, 38), Text = "", TextColor3 = INK,
+	-- ⭐ THE NUMBER IS TYPEABLE, THE UNIT STAYS (2026-10-07, user "angkanya bisa kita edit, min di belakangnya bisa
+	-- kita set"). The value is a TextBox and cfg.Suffix its own label beside it, so typing never has to step around
+	-- " min" and the unit cannot be typed away. Both size to their text: a 10-digit value fits without a fixed width.
+	local mid = new("Frame", { Parent = box, LayoutOrder = 2, BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
+	pad(mid, 0, 4, 0, 4)
+	local ml = hlist(mid, 4); ml.VerticalAlignment = Enum.VerticalAlignment.Center
+	new("UISizeConstraint", { Parent = mid, MinSize = Vector2.new(62, 38) })
+	ml.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local entry = new("TextBox", { Parent = mid, LayoutOrder = 1, BackgroundTransparency = 1, ClearTextOnFocus = false,
+		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = "", TextColor3 = INK,
 		FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 })
+	local unit = cfg.Suffix and new("TextLabel", { Parent = mid, LayoutOrder = 2, BackgroundTransparency = 1,
+		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = tostring(cfg.Suffix),
+		TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 }) or nil
 	local plus = stepBtn("+", 3)
 
 	local function render()
 		if val == 0 and cfg.ZeroLabel then
-			shown.Text = tostring(cfg.ZeroLabel)
+			entry.Text = tostring(cfg.ZeroLabel)
+			if unit then unit.Visible = false end
 		else
-			shown.Text = tostring(val) .. (cfg.Suffix and (" " .. cfg.Suffix) or "")
+			entry.Text = tostring(val)
+			if unit then unit.Visible = true end
 		end
 		-- a step that cannot move is DIMMED, not removed, so the control never changes width mid-use
 		minus.TextTransparency = (val <= minV) and 0.6 or 0
@@ -1129,6 +1143,12 @@ function Tab:Number(cfg)
 	end
 	minus.MouseButton1Click:Connect(function() set(val - step, true) end)
 	plus.MouseButton1Click:Connect(function() set(val + step, true) end)
+	-- typed value: digits only (commas, spaces, "$" and the like are dropped), clamped like a step; junk restores
+	entry.FocusLost:Connect(function()
+		local n = tonumber((entry.Text:gsub("[^%d%.%-]", "")))
+		if n then set(n, true) end
+		render() -- always: shows the clamped value, or puts the old one back
+	end)
 	render()
 
 	local api = { Set = function(_, v) set(v, false) end, Get = function() return val end }
