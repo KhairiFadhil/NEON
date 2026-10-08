@@ -1782,17 +1782,25 @@ local function rowState(row, api)
 	api = type(api) == "table" and api or {}
 	local block
 	function api:SetVisible(v) row.Visible = v ~= false end
-	function api:SetDisabled(d)
+	-- reason (optional string): why it is locked, written ON the overlay ("Money Merge is active"); the wash goes
+	-- near-opaque so the line reads over the row's own text instead of mixing with it
+	function api:SetDisabled(d, reason)
 		d = d and true or false
 		if d and not block then
 			-- Active TextButton = sinks the input the controls under it would get; ACCENT at 0.4 = the panel
 			-- colour washed over the card, which is what reads as greyed-out on this theme
 			block = new("TextButton", { Parent = row, Text = "", AutoButtonColor = false, Active = true,
 				BackgroundColor3 = ACCENT, BackgroundTransparency = 0.4, BorderSizePixel = 0,
-				Size = UDim2.fromScale(1, 1), ZIndex = 50 })
+				Size = UDim2.fromScale(1, 1), ZIndex = 50, TextColor3 = INK,
+				FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 12, TextWrapped = true })
 			corner(block, 10)
 		end
-		if block then block.Visible = d end
+		if block then
+			local msg = d and type(reason) == "string" and reason ~= "" and reason or ""
+			block.Text = msg
+			block.BackgroundTransparency = msg ~= "" and 0.1 or 0.4
+			block.Visible = d
+		end
 		api.Disabled = d
 	end
 	function api:IsDisabled() return api.Disabled == true end

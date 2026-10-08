@@ -99,6 +99,7 @@ Colorpicker, Button) also gets:
 ```lua
 el:SetVisible(false)   -- hide the whole row (the list closes the gap); true shows it again
 el:SetDisabled(true)   -- greyed out, clicks do nothing (like a disabled HTML button); false re-enables
+el:SetDisabled(true, "Money Merge is active")  -- same, with the reason written on the row
 el:IsDisabled()        -- boolean
 -- or at build time: Tab:Toggle{ ..., Visible = false, Disabled = true }
 ```
