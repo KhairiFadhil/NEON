@@ -1119,9 +1119,12 @@ function Tab:Number(cfg)
 	local pre = cfg.Prefix and new("TextLabel", { Parent = mid, LayoutOrder = 0, BackgroundTransparency = 1,
 		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = tostring(cfg.Prefix),
 		TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 }) or nil
+	-- MIN WIDTH 34 (2026-10-08, user "number input menit ga bisa di custom"): with a 0 base width the box was exactly as
+	-- wide as its text -- 4.8px for "5", 0px once cleared -- so there was nothing to click to type into. The offset is
+	-- the floor, AutomaticSize still grows it for long values.
 	local entry = new("TextBox", { Parent = mid, LayoutOrder = 1, BackgroundTransparency = 1, ClearTextOnFocus = false,
-		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = "", TextColor3 = INK,
-		FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 })
+		Size = UDim2.fromOffset(34, 38), AutomaticSize = Enum.AutomaticSize.X, Text = "", TextColor3 = INK,
+		TextXAlignment = Enum.TextXAlignment.Center, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 })
 	local unit = cfg.Suffix and new("TextLabel", { Parent = mid, LayoutOrder = 2, BackgroundTransparency = 1,
 		Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X, Text = tostring(cfg.Suffix),
 		TextColor3 = INK, FontFace = bodyFont(Enum.FontWeight.Bold), TextSize = 14 }) or nil
