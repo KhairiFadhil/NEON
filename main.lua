@@ -1095,7 +1095,13 @@ function Tab:Number(cfg)
 	local minV = tonumber(cfg.Min) or 0
 	local maxV = tonumber(cfg.Max) or 100
 	local step = tonumber(cfg.Step) or 1
-	local val = math.clamp(tonumber(cfg.Default) or minV, minV, maxV)
+	if step <= 0 then step = 1 end
+	-- decimals of the step ("0.5" -> 1): values round to that many places and render with them. The old whole-number
+	-- rounding sent a 0.5 step straight back (1 - 0.5 = 0.5 -> 1), so the minus button "did nothing"; this also keeps
+	-- 0.1 steps from showing 0.30000000000000004. No grid snap: a typed 12 in a 5-step box stays 12, and 12 - 5 = 7.
+	local dec = #(tostring(step):match("%.(%d+)$") or "")
+	local function places(v) return tonumber(string.format("%." .. dec .. "f", v)) end
+	local val = math.clamp(places(tonumber(cfg.Default) or minV), minV, maxV)
 
 	local box = new("Frame", { Parent = ctrl, BackgroundColor3 = INK, BackgroundTransparency = 0.9,
 		BorderSizePixel = 0, Size = UDim2.fromOffset(0, 38), AutomaticSize = Enum.AutomaticSize.X })
@@ -1140,7 +1146,7 @@ function Tab:Number(cfg)
 			if unit then unit.Visible = false end
 			if pre then pre.Visible = false end
 		else
-			entry.Text = tostring(val)
+			entry.Text = (dec > 0) and string.format("%." .. dec .. "f", val) or tostring(val)
 			if unit then unit.Visible = true end
 			if pre then pre.Visible = true end
 		end
@@ -1149,7 +1155,7 @@ function Tab:Number(cfg)
 		plus.TextTransparency = (val >= maxV) and 0.6 or 0
 	end
 	local function set(v, fire)
-		v = math.clamp(math.floor(v + 0.5), minV, maxV)
+		v = math.clamp(places(v), minV, maxV) -- the step's decimals, not whole numbers (see dec above)
 		if v == val then return end
 		val = v; render()
 		if fire and cfg.Callback then task.spawn(cfg.Callback, val) end
