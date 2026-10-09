@@ -1471,14 +1471,17 @@ local function dropdownControl(win, ctrl, cfg)
 	-- ⭐ FILTER = .Visible only, and ONE re-measure per keystroke. WindUI does its two recalcs INSIDE
 	-- the per-option loop, i.e. O(n) layout reads per keypress on a long list. Plain-text find (the
 	-- `true` 4th arg) so a "(" or "%" typed into the box cannot blow up as a Lua pattern.
+	-- hidden = options taken out by api:SetHidden (e.g. already picked in a sibling dropdown); search filters the rest
+	local hidden = {}
+	local function applyFilter()
+		local q = searchBox and string.lower(searchBox.Text) or ""
+		for k, r in ipairs(rows) do
+			r.Visible = not hidden[allOpts[k]] and ((q == "") or (string.find(string.lower(allOpts[k]), q, 1, true) ~= nil))
+		end
+		layout(); positionAt()
+	end
 	if searchBox then
-		searchBox:GetPropertyChangedSignal("Text"):Connect(function()
-			local q = string.lower(searchBox.Text)
-			for k, r in ipairs(rows) do
-				r.Visible = (q == "") or (string.find(string.lower(allOpts[k]), q, 1, true) ~= nil)
-			end
-			layout(); positionAt()
-		end)
+		searchBox:GetPropertyChangedSignal("Text"):Connect(applyFilter)
 	end
 
 	local function open()
@@ -1542,6 +1545,20 @@ local function dropdownControl(win, ctrl, cfg)
 			end
 		end,
 		SetDisabled = function(_, v) disabled = v and true or false; if disabled and isOpen then close() end; applyDisabled() end,
+		-- hide these options (a list of names); a hidden option that was selected is deselected and Callback fires
+		SetHidden = function(_, list)
+			hidden = {}
+			for _, o in ipairs(type(list) == "table" and list or {}) do hidden[o] = true end
+			if multi then
+				local dropped = false
+				for o in pairs(hidden) do if selSet[o] then selSet[o] = nil; dropped = true end end
+				if dropped then
+					refreshChecks(); refreshPreview()
+					if cfg.Callback then task.spawn(cfg.Callback, selectedList()) end
+				end
+			end
+			applyFilter()
+		end,
 	}
 	bindFlag(win, cfg, function() return multi and selectedList() or value end, function(v) api:Set(v) end)
 	return api
