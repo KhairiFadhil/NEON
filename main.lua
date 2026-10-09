@@ -1435,6 +1435,8 @@ local function dropdownControl(win, ctrl, cfg)
 		task.delay(0.2, function() if not isOpen then root.Visible = false; shadow.Visible = false end end)
 	end
 
+	-- locked = shown greyed out and unclickable (api:SetLocked); dims = the parts that grey out per option
+	local locked, dims = {}, {}
 	for i, opt in ipairs(allOpts) do
 		local ob = new("TextButton", { Parent = menu, LayoutOrder = i, AutoButtonColor = false,
 			BackgroundColor3 = INK, BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, OPT_H),
@@ -1442,19 +1444,24 @@ local function dropdownControl(win, ctrl, cfg)
 		if multi then   -- checkbox on the left + left-aligned label
 			local cbx = new("Frame", { Parent = ob, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 11, 0.5, 0),
 				Size = UDim2.fromOffset(15, 15), BackgroundColor3 = INK, BackgroundTransparency = 1 })
-			corner(cbx, 3); stroke(cbx, 1.5, INK)
+			corner(cbx, 3)
+			local st = stroke(cbx, 1.5, INK)
 			local fill = new("Frame", { Parent = cbx, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromScale(0.6, 0.6), BackgroundColor3 = INK, BorderSizePixel = 0, Visible = selSet[opt] == true })
 			corner(fill, 2)
 			cbFills[opt] = fill
-			new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
+			local lbl = new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, 34, 0.5, 0), Size = UDim2.new(1, -40, 1, 0), Text = string.upper(opt), TextColor3 = INK,
 				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
+			dims[opt] = { lbl = lbl, st = st }
+		else
+			dims[opt] = { btn = ob }
 		end
 		rows[#rows + 1] = ob
-		ob.MouseEnter:Connect(function() if isOpen then tween(ob, { BackgroundTransparency = 0.85 }) end end)
+		ob.MouseEnter:Connect(function() if isOpen and not locked[opt] then tween(ob, { BackgroundTransparency = 0.85 }) end end)
 		ob.MouseLeave:Connect(function() tween(ob, { BackgroundTransparency = 1 }) end)
 		ob.MouseButton1Click:Connect(function()
+			if locked[opt] then return end
 			if multi then                      -- toggle, keep the menu open
 				selSet[opt] = (not selSet[opt]) or nil
 				cbFills[opt].Visible = selSet[opt] == true
@@ -1558,6 +1565,25 @@ local function dropdownControl(win, ctrl, cfg)
 				end
 			end
 			applyFilter()
+		end,
+		-- grey these options out (a list of names): still listed, not clickable; a locked pick is deselected
+		SetLocked = function(_, list)
+			locked = {}
+			for _, o in ipairs(type(list) == "table" and list or {}) do locked[o] = true end
+			for o, d in pairs(dims) do
+				local t = locked[o] and 0.6 or 0
+				if d.lbl then d.lbl.TextTransparency = t end
+				if d.st then d.st.Transparency = t end
+				if d.btn then d.btn.TextTransparency = t end
+			end
+			if multi then
+				local dropped = false
+				for o in pairs(locked) do if selSet[o] then selSet[o] = nil; dropped = true end end
+				if dropped then
+					refreshChecks(); refreshPreview()
+					if cfg.Callback then task.spawn(cfg.Callback, selectedList()) end
+				end
+			end
 		end,
 	}
 	bindFlag(win, cfg, function() return multi and selectedList() or value end, function(v) api:Set(v) end)
