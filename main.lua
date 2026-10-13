@@ -370,15 +370,19 @@ function NEON:CreateWindow(cfg)
 	-- spot used to be an absolute offset computed once. Drag is off while minimised, so centring is always right.
 	local function centerMin()
 		if not win._min or win._accordion then return end
-		local w = panel.Parent and panel.Parent.AbsoluteSize.X or 0
-		if w <= 0 then w = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280 end
+		-- the VIEWPORT width, not the ScreenGui's AbsoluteSize: that one lags the resize (measured: still 800
+		-- with the viewport already 1920, so the pill centred on the old width). The gui ignores the inset,
+		-- so its width IS the viewport's.
+		local cam = workspace.CurrentCamera
+		local w = (cam and cam.ViewportSize.X) or 0
+		if w <= 0 then w = (panel.Parent and panel.Parent.AbsoluteSize.X) or 1280 end
 		panel.Position = UDim2.fromOffset(math.floor((w - 392 * win._scale.Scale) / 2), 20)
 	end
 	win._scale:GetPropertyChangedSignal("Scale"):Connect(centerMin)
 	if workspace.CurrentCamera then
 		local vpc = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 			autofit()
-			task.defer(centerMin) -- after the ScreenGui's AbsoluteSize has followed the viewport
+			centerMin()
 		end)
 		gui.Destroying:Connect(function() vpc:Disconnect() end)
 	end
@@ -713,7 +717,7 @@ function NEON:_toggleMin()
 		self._restorePos = self._restorePos or panel.Position
 		local dispW = w * self._scale.Scale   -- centred using the on-screen (scaled) width
 		tween(panel, { Size = UDim2.new(0, w, 0, 0),
-			Position = UDim2.fromOffset(math.floor((panel.Parent.AbsoluteSize.X - dispW) / 2), 20) }, EASE)
+			Position = UDim2.fromOffset(math.floor((((workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or panel.Parent.AbsoluteSize.X) - dispW) / 2), 20) }, EASE)
 		task.delay(DUR, function() if self._min then body.Visible = false end; self._accordion = false end)
 	else
 		body.ClipsDescendants = true
