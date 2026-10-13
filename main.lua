@@ -366,8 +366,20 @@ function NEON:CreateWindow(cfg)
 		win._scale.Scale = math.min(cfg.Scale or 1, (vp.X - 84) / 772, (vp.Y - 84) / 660)
 	end
 	autofit()
+	-- the minimised pill stays centred when the viewport or zoom changes (window resized / restored): its
+	-- spot used to be an absolute offset computed once. Drag is off while minimised, so centring is always right.
+	local function centerMin()
+		if not win._min or win._accordion then return end
+		local w = panel.Parent and panel.Parent.AbsoluteSize.X or 0
+		if w <= 0 then w = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280 end
+		panel.Position = UDim2.fromOffset(math.floor((w - 392 * win._scale.Scale) / 2), 20)
+	end
+	win._scale:GetPropertyChangedSignal("Scale"):Connect(centerMin)
 	if workspace.CurrentCamera then
-		local vpc = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(autofit)
+		local vpc = workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+			autofit()
+			task.defer(centerMin) -- after the ScreenGui's AbsoluteSize has followed the viewport
+		end)
 		gui.Destroying:Connect(function() vpc:Disconnect() end)
 	end
 
@@ -662,7 +674,7 @@ function NEON:CreateWindow(cfg)
 		panel.Size = UDim2.new(0, 392, 0, 0)
 		win:_setMinStyle(true, TweenInfo.new(0))   -- apply minimized styling instantly
 		local vpx = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.X) or 1280
-		restPos = UDim2.fromOffset(math.floor((vpx - 392) / 2), 20)
+		restPos = UDim2.fromOffset(math.floor((vpx - 392 * win._scale.Scale) / 2), 20)   -- the on-screen (scaled) width
 	end
 	panel.Position = UDim2.fromOffset(restPos.X.Offset, restPos.Y.Offset - 64)   -- start above the rest spot
 	tween(panel, { Position = restPos }, TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out))
