@@ -1425,7 +1425,7 @@ local function dropdownControl(win, ctrl, cfg)
 
 	local menu = new("ScrollingFrame", { Parent = root, LayoutOrder = 1, BackgroundTransparency = 1,
 		BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 0), CanvasSize = UDim2.new(),
-		AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 4,
+		ScrollBarThickness = 0, ScrollingEnabled = false, -- layout() turns both on only for a list that overflows
 		ScrollBarImageColor3 = INK, ScrollBarImageTransparency = 0.5,
 		ScrollingDirection = Enum.ScrollingDirection.Y, Active = true })
 	vlist(menu, 0); pad(menu, 4, 0, 4, 0)
@@ -1441,8 +1441,17 @@ local function dropdownControl(win, ctrl, cfg)
 	end
 
 	local function layout()
-		local listH = math.min(visibleCount() * OPT_H + PAD_Y, maxDH)
+		local full = visibleCount() * OPT_H + PAD_Y
+		local listH = math.min(full, maxDH)
 		menu.Size = UDim2.new(1, 0, 0, listH)
+		-- ⭐ EXPLICIT CANVAS + A SCROLLBAR ONLY WHEN IT OVERFLOWS (2026-10-24, user "munculin slidernya kek glitching").
+		-- With AutomaticCanvasSize the canvas was exactly the frame's height, and the open tween's UIScale (0.96 -> 1)
+		-- rounded the two apart for a few frames: a scrollbar flickered in and out on a list that fits.
+		local over = full > maxDH
+		menu.CanvasSize = UDim2.new(0, 0, 0, full)
+		menu.ScrollBarThickness = over and 4 or 0
+		menu.ScrollingEnabled = over
+		if not over then menu.CanvasPosition = Vector2.zero end
 		root.Size = UDim2.fromOffset(btn.Size.X.Offset, listH + (searchOn and SEARCH_H or 0))
 	end
 
