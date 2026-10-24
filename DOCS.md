@@ -173,6 +173,17 @@ local m = Tab:Dropdown{ Title = "Perks", Options = {"SPEED","JUMP","FLY","NOCLIP
 m:Set({ "FLY", "NOCLIP" }); print(m:Get())      -- array in / array out
 ```
 
+**Option icons** — `Icons` maps an option to an icon: a Lucide name, a `"rbxassetid://..."`, or a bare number.
+Each row shows its icon left of a left-aligned label (after the checkbox in `Multi`), and a single-select
+button shows the picked option's icon. Lucide icons are tinted with the theme; any other image (a game's item
+art) keeps its own colours. Options without an entry still line up with the ones that have one.
+
+```lua
+Tab:Dropdown{ Title = "Bait", Options = {"WORMTEC","PRAWNTEC","SQUIDTEC"}, Default = "PRAWNTEC",
+              Icons = { WORMTEC = "rbxassetid://111", PRAWNTEC = "rbxassetid://222", SQUIDTEC = 333 },
+              Callback = function(opt) end }
+```
+
 ### Segmented (button group)
 ```lua
 Tab:Segmented{ Title = "Difficulty", Options = {"EASY","NORMAL","HARD"}, Default = "NORMAL",
@@ -197,6 +208,16 @@ Tab:Button{ Title = "Rejoin", Text = "EXECUTE", Badge = "SPICY", Feature = true,
 ```lua
 Tab:Section("Combat")   -- or Tab:Section({ Title = "Combat" })
 ```
+
+### Stats (tile row)
+```lua
+local s = Tab:Stats{ Items = {
+    { Title = "Hand", Value = "$0", Desc = "Cash on hand", Icon = "rbxassetid://123" }, -- Icon optional
+    { Title = "Time", Value = "0:00", Desc = "Session time", Icon = "clock" },
+} }
+s:Set(1, "$500"); s:SetAll({ "$500", "1:23" })
+```
+`Icon` sits left of the tile title: Lucide names are tinted with the theme, other images keep their colours.
 
 ---
 

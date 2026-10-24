@@ -238,12 +238,15 @@ local function iconProps(spec)
 	return nil
 end
 
+-- Lucide glyphs are white masks meant to be tinted; anything else (a game's own item art) keeps its colours.
+local function isLucide(spec) return type(spec) == "string" and LUCIDE[spec] ~= nil end
+
 local function makeIcon(parent, spec, size, order, colour)
 	local p = iconProps(spec)
 	if not p then return nil end
 	p.Parent, p.BackgroundTransparency = parent, 1
 	p.Size = UDim2.fromOffset(size, size)
-	p.ImageColor3 = colour or INK
+	p.ImageColor3 = isLucide(spec) and (colour or INK) or Color3.new(1, 1, 1)
 	p.LayoutOrder = order or 0
 	return new("ImageLabel", p)
 end
@@ -875,7 +878,7 @@ function NEON:CreateTab(cfg)
 		tab._ctween = TweenService:Create(btn, TWEEN, { BackgroundColor3 = target })
 		tab._ctween:Play()
 		lbl.TextColor3 = active and ACCENT or INK
-		if tabIcon then tabIcon.ImageColor3 = active and ACCENT or INK end -- follow the label
+		if tabIcon and isLucide(cfg.Icon) then tabIcon.ImageColor3 = active and ACCENT or INK end -- follow the label (game art keeps its colours)
 	end
 	tab._refresh = refresh
 	btn.MouseButton1Click:Connect(function() win:_selectTab(tab) end)
@@ -1335,6 +1338,28 @@ local function dropdownControl(win, ctrl, cfg)
 		Position = UDim2.new(1, -13, 0.5, 0), Size = UDim2.fromOffset(12, 12), Text = "▼", TextColor3 = INK,
 		FontFace = bodyFont(), TextSize = 10 })
 
+	-- ⭐ OPTION ICONS (2026-10-24): cfg.Icons = { [option] = icon } (Lucide name, "rbxassetid://..." or a number).
+	-- Rows get the icon left of a left-aligned label; a single-select button shows the picked option's icon.
+	-- Game art keeps its own colours (makeIcon). Options with no entry still line up with the ones that have one.
+	local icons = type(cfg.Icons) == "table" and cfg.Icons or nil
+	local hIcon
+	if icons and not multi then
+		hIcon = new("ImageLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 9, 0.5, 0), Size = UDim2.fromOffset(22, 22), Visible = false })
+		vlbl.Position = UDim2.new(0, 37, 0.5, 0); vlbl.Size = UDim2.new(1, -59, 1, 0)
+	end
+	local function setHeaderIcon(v)
+		if not hIcon then return end
+		local p = v ~= nil and iconProps(icons[v]) or nil
+		hIcon.Visible = p ~= nil
+		if not p then return end
+		hIcon.Image = p.Image
+		hIcon.ImageRectSize = p.ImageRectSize or Vector2.zero
+		hIcon.ImageRectOffset = p.ImageRectOffset or Vector2.zero
+		hIcon.ImageColor3 = isLucide(icons[v]) and INK or Color3.new(1, 1, 1)
+	end
+	setHeaderIcon(value)
+
 	-- preview text: single = the value; multi = joined selection, or "N SELECTED", or "NONE"
 	local function previewText()
 		if not multi then return string.upper(value or "") end
@@ -1472,10 +1497,21 @@ local function dropdownControl(win, ctrl, cfg)
 				Size = UDim2.fromScale(0.6, 0.6), BackgroundColor3 = INK, BorderSizePixel = 0, Visible = selSet[opt] == true })
 			corner(fill, 2)
 			cbFills[opt] = fill
+			local ic = icons and makeIcon(ob, icons[opt], 18, 0) or nil
+			if ic then ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, 33, 0.5, 0) end
+			local lx = icons and 58 or 34
 			local lbl = new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 34, 0.5, 0), Size = UDim2.new(1, -40, 1, 0), Text = string.upper(opt), TextColor3 = INK,
+				Position = UDim2.new(0, lx, 0.5, 0), Size = UDim2.new(1, -(lx + 6), 1, 0), Text = string.upper(opt), TextColor3 = INK,
 				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
-			dims[opt] = { lbl = lbl, st = st }
+			dims[opt] = { lbl = lbl, st = st, ic = ic }
+		elseif icons then   -- icon on the left + left-aligned label
+			ob.Text = ""
+			local ic = makeIcon(ob, icons[opt], 20, 0)
+			if ic then ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, 10, 0.5, 0) end
+			local lbl = new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 38, 0.5, 0), Size = UDim2.new(1, -44, 1, 0), Text = string.upper(opt), TextColor3 = INK,
+				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
+			dims[opt] = { lbl = lbl, ic = ic }
 		else
 			dims[opt] = { btn = ob }
 		end
@@ -1490,7 +1526,7 @@ local function dropdownControl(win, ctrl, cfg)
 				refreshPreview()
 				if cfg.Callback then task.spawn(cfg.Callback, selectedList()) end
 			else
-				value = opt; vlbl.Text = string.upper(opt); close()
+				value = opt; vlbl.Text = string.upper(opt); setHeaderIcon(opt); close()
 				if cfg.Callback then task.spawn(cfg.Callback, opt) end
 			end
 		end)
@@ -1570,7 +1606,7 @@ local function dropdownControl(win, ctrl, cfg)
 				if type(v) == "table" then for _, o in ipairs(v) do selSet[o] = true end end
 				refreshChecks(); refreshPreview()
 			else
-				value = v; vlbl.Text = string.upper(v)
+				value = v; vlbl.Text = string.upper(v); setHeaderIcon(v)
 			end
 		end,
 		SetDisabled = function(_, v) disabled = v and true or false; if disabled and isOpen then close() end; applyDisabled() end,
@@ -1597,6 +1633,7 @@ local function dropdownControl(win, ctrl, cfg)
 				if d.lbl then d.lbl.TextTransparency = t end
 				if d.st then d.st.Transparency = t end
 				if d.btn then d.btn.TextTransparency = t end
+				if d.ic then d.ic.ImageTransparency = t end
 			end
 			if multi then
 				local dropped = false
@@ -1828,7 +1865,17 @@ function Tab:Stats(cfg)
 			l.AutomaticSize = Enum.AutomaticSize.Y; l.Size = UDim2.new(1, 0, 0, 0); l.TextWrapped = true
 			return l
 		end
-		line(tostring(it.Title or ""), 13, Enum.FontWeight.Medium, 0.3, 1)
+		-- optional per-tile icon left of the title (Lucide tinted, game art in its own colours)
+		if iconProps(it.Icon) then
+			local head = new("Frame", { Parent = cell, LayoutOrder = 1, BackgroundTransparency = 1,
+				AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 0) })
+			hlist(head, 6).VerticalAlignment = Enum.VerticalAlignment.Center
+			makeIcon(head, it.Icon, 16, 0)
+			local t = label(head, tostring(it.Title or ""), 13, Enum.FontWeight.Medium, INK)
+			t.LayoutOrder = 1; t.TextTransparency = 0.3
+		else
+			line(tostring(it.Title or ""), 13, Enum.FontWeight.Medium, 0.3, 1)
+		end
 		cells[i] = line(tostring(it.Value or ""), 21, Enum.FontWeight.ExtraBold, 0, 2)
 		line(tostring(it.Desc or ""), 11, Enum.FontWeight.Medium, 0.45, 3)
 	end
