@@ -1345,13 +1345,15 @@ local function dropdownControl(win, ctrl, cfg)
 	local hIcon
 	if icons and not multi then
 		hIcon = new("ImageLabel", { Parent = btn, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 9, 0.5, 0), Size = UDim2.fromOffset(22, 22), Visible = false })
-		vlbl.Position = UDim2.new(0, 37, 0.5, 0); vlbl.Size = UDim2.new(1, -59, 1, 0)
+			Position = UDim2.new(0, 10, 0.5, 0), Size = UDim2.fromOffset(16, 16), Visible = false })
+		vlbl.Position = UDim2.new(0, 32, 0.5, 0); vlbl.Size = UDim2.new(1, -54, 1, 0); vlbl.TextTruncate = Enum.TextTruncate.AtEnd
 	end
 	local function setHeaderIcon(v)
 		if not hIcon then return end
 		local p = v ~= nil and iconProps(icons[v]) or nil
 		hIcon.Visible = p ~= nil
+		-- no icon for this pick: the text goes back to the plain button's inset instead of leaving a hole
+		vlbl.Position = UDim2.new(0, p and 32 or 12, 0.5, 0); vlbl.Size = UDim2.new(1, p and -54 or -34, 1, 0)
 		if not p then return end
 		hIcon.Image = p.Image
 		hIcon.ImageRectSize = p.ImageRectSize or Vector2.zero
@@ -1497,20 +1499,21 @@ local function dropdownControl(win, ctrl, cfg)
 				Size = UDim2.fromScale(0.6, 0.6), BackgroundColor3 = INK, BorderSizePixel = 0, Visible = selSet[opt] == true })
 			corner(fill, 2)
 			cbFills[opt] = fill
-			local ic = icons and makeIcon(ob, icons[opt], 18, 0) or nil
+			local ic = icons and makeIcon(ob, icons[opt], 16, 0) or nil
 			if ic then ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, 33, 0.5, 0) end
-			local lx = icons and 58 or 34
+			local lx = icons and 55 or 34
 			local lbl = new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, lx, 0.5, 0), Size = UDim2.new(1, -(lx + 6), 1, 0), Text = string.upper(opt), TextColor3 = INK,
 				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
 			dims[opt] = { lbl = lbl, st = st, ic = ic }
 		elseif icons then   -- icon on the left + left-aligned label
 			ob.Text = ""
-			local ic = makeIcon(ob, icons[opt], 20, 0)
-			if ic then ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, 10, 0.5, 0) end
+			local ic = makeIcon(ob, icons[opt], 16, 0)
+			if ic then ic.AnchorPoint = Vector2.new(0, 0.5); ic.Position = UDim2.new(0, 12, 0.5, 0) end
 			local lbl = new("TextLabel", { Parent = ob, BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5),
-				Position = UDim2.new(0, 38, 0.5, 0), Size = UDim2.new(1, -44, 1, 0), Text = string.upper(opt), TextColor3 = INK,
-				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left })
+				Position = UDim2.new(0, 36, 0.5, 0), Size = UDim2.new(1, -42, 1, 0), Text = string.upper(opt), TextColor3 = INK,
+				FontFace = bodyFont(), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd })
 			dims[opt] = { lbl = lbl, ic = ic }
 		else
 			dims[opt] = { btn = ob }
